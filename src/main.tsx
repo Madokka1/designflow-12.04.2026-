@@ -8,6 +8,9 @@ import { AuthProvider } from './context/AuthProvider'
 import { RemoteSyncProvider } from './context/remoteSyncContext'
 import { SettingsProvider } from './context/SettingsProvider'
 import './index.css'
+import { registerPortfolioServiceWorker } from './lib/registerServiceWorker'
+
+registerPortfolioServiceWorker()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

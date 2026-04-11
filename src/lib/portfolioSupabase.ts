@@ -2,6 +2,9 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { CalendarCustomEvent } from '../types/calendarCustomEvent'
 import type { FinanceTransaction } from '../types/financeTransaction'
 import type { Project, ProjectStage } from '../types/project'
+import type { ProjectTemplate } from '../types/projectTemplate'
+import type { WorkspaceClient } from '../types/workspaceClient'
+import type { WorkspaceTask } from '../types/workspaceTask'
 
 type ProjectRow = {
   id: string
@@ -14,6 +17,8 @@ type ProjectRow = {
   progress: number
   tags: unknown
   comment: string | null
+  archived?: boolean
+  client_id?: string | null
 }
 
 type StageRow = {
@@ -71,6 +76,41 @@ function stageRowToStage(row: StageRow): ProjectStage {
   }
 }
 
+function stageFromLooseJson(o: unknown): ProjectStage | null {
+  if (!o || typeof o !== 'object') return null
+  const r = o as Record<string, unknown>
+  if (typeof r.id !== 'string' || typeof r.name !== 'string') return null
+  return {
+    id: r.id,
+    name: r.name,
+    status: typeof r.status === 'string' ? r.status : '',
+    deadline: typeof r.deadline === 'string' ? r.deadline : '—',
+    planned: typeof r.planned === 'string' ? r.planned : '',
+    actual: typeof r.actual === 'string' ? r.actual : '',
+    timeSpentSeconds:
+      typeof r.timeSpentSeconds === 'number' ? r.timeSpentSeconds : undefined,
+    actualInPill:
+      typeof r.actualInPill === 'boolean' ? r.actualInPill : false,
+    description:
+      typeof r.description === 'string' ? r.description : undefined,
+    checklist: asChecklist(r.checklist),
+    modalTags: Array.isArray(r.modalTags)
+      ? asStringArray(r.modalTags)
+      : undefined,
+    addedAt: typeof r.addedAt === 'string' ? r.addedAt : undefined,
+  }
+}
+
+function parseStagesJsonb(v: unknown): ProjectStage[] {
+  if (!Array.isArray(v)) return []
+  const out: ProjectStage[] = []
+  for (const item of v) {
+    const s = stageFromLooseJson(item)
+    if (s) out.push(s)
+  }
+  return out
+}
+
 function rowToProject(row: ProjectRow, stages: StageRow[]): Project {
   const tags = asStringArray(row.tags)
   const sorted = [...stages].sort((a, b) => a.sort_order - b.sort_order)
@@ -85,6 +125,8 @@ function rowToProject(row: ProjectRow, stages: StageRow[]): Project {
     tags: tags.length ? tags : undefined,
     comment: row.comment ?? undefined,
     stages: sorted.map(stageRowToStage),
+    archived: Boolean(row.archived),
+    clientId: row.client_id ?? null,
   }
 }
 
@@ -92,6 +134,9 @@ export type PortfolioBundle = {
   projects: Project[]
   financeTransactions: FinanceTransaction[]
   calendarCustomEvents: CalendarCustomEvent[]
+  clients: WorkspaceClient[]
+  tasks: WorkspaceTask[]
+  templates: ProjectTemplate[]
 }
 
 export async function fetchPortfolioBundle(
@@ -169,7 +214,83 @@ export async function fetchPortfolioBundle(
     }),
   )
 
-  return { projects, financeTransactions, calendarCustomEvents }
+  let clients: WorkspaceClient[] = []
+  const { data: cData, error: cErr } = await client
+    .from('clients')
+    .select('*')
+    .eq('user_id', userId)
+    .order('name', { ascending: true })
+  if (!cErr && cData) {
+    clients = (cData as {
+      id: string
+      name: string
+      email: string
+      phone: string
+      company: string
+      notes: string
+    }[]).map((r) => ({
+      id: r.id,
+      name: r.name,
+      email: r.email ?? '',
+      phone: r.phone ?? '',
+      company: r.company ?? '',
+      notes: r.notes ?? '',
+    }))
+  }
+
+  let tasks: WorkspaceTask[] = []
+  const { data: tData, error: tErr } = await client
+    .from('tasks')
+    .select('*')
+    .eq('user_id', userId)
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true })
+  if (!tErr && tData) {
+    tasks = (tData as {
+      id: string
+      title: string
+      done: boolean
+      due_date: string
+      project_slug: string | null
+      labels: unknown
+      sort_order: number
+    }[]).map((r) => ({
+      id: r.id,
+      title: r.title,
+      done: r.done,
+      dueDate: r.due_date ?? '',
+      projectSlug: r.project_slug,
+      labels: asStringArray(r.labels),
+      sortOrder: r.sort_order ?? 0,
+    }))
+  }
+
+  let templates: ProjectTemplate[] = []
+  const { data: tplData, error: tplErr } = await client
+    .from('project_templates')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+  if (!tplErr && tplData) {
+    templates = (tplData as {
+      id: string
+      name: string
+      stages: unknown
+    }[]).map((r) => ({
+      id: r.id,
+      name: r.name,
+      stages: parseStagesJsonb(r.stages),
+    }))
+  }
+
+  return {
+    projects,
+    financeTransactions,
+    calendarCustomEvents,
+    clients,
+    tasks,
+    templates,
+  }
 }
 
 function stageToRow(s: ProjectStage, projectId: string, sortOrder: number): Record<string, unknown> {
@@ -197,21 +318,23 @@ export async function upsertProjectToSupabase(
   project: Project,
 ): Promise<Error | null> {
   const tags = project.tags ?? []
-  const { error: e1 } = await client.from('projects').upsert(
-    {
-      id: project.id,
-      user_id: userId,
-      slug: project.slug,
-      title: project.title,
-      client: project.client,
-      amount: project.amount,
-      deadline: project.deadline,
-      progress: project.progress,
-      tags,
-      comment: project.comment ?? null,
-    },
-    { onConflict: 'id' },
-  )
+  const row: Record<string, unknown> = {
+    id: project.id,
+    user_id: userId,
+    slug: project.slug,
+    title: project.title,
+    client: project.client,
+    amount: project.amount,
+    deadline: project.deadline,
+    progress: project.progress,
+    tags,
+    comment: project.comment ?? null,
+    archived: project.archived ?? false,
+    client_id: project.clientId ?? null,
+  }
+  const { error: e1 } = await client.from('projects').upsert(row, {
+    onConflict: 'id',
+  })
   if (e1) return e1
 
   const stages = project.stages ?? []
@@ -231,8 +354,8 @@ export async function upsertProjectToSupabase(
   }
 
   for (let i = 0; i < stages.length; i++) {
-    const row = stageToRow(stages[i], project.id, i)
-    const { error: e4 } = await client.from('project_stages').upsert(row, {
+    const rowSt = stageToRow(stages[i], project.id, i)
+    const { error: e4 } = await client.from('project_stages').upsert(rowSt, {
       onConflict: 'id',
     })
     if (e4) return e4
@@ -274,5 +397,90 @@ export async function upsertCalendarEventRemote(
     },
     { onConflict: 'id' },
   )
+  return error
+}
+
+export async function upsertClientRemote(
+  client: SupabaseClient,
+  userId: string,
+  c: WorkspaceClient,
+): Promise<Error | null> {
+  const { error } = await client.from('clients').upsert(
+    {
+      id: c.id,
+      user_id: userId,
+      name: c.name,
+      email: c.email,
+      phone: c.phone,
+      company: c.company,
+      notes: c.notes,
+    },
+    { onConflict: 'id' },
+  )
+  return error
+}
+
+export async function deleteClientRemote(
+  client: SupabaseClient,
+  clientRowId: string,
+): Promise<Error | null> {
+  const { error } = await client.from('clients').delete().eq('id', clientRowId)
+  return error
+}
+
+export async function upsertTaskRemote(
+  client: SupabaseClient,
+  userId: string,
+  t: WorkspaceTask,
+): Promise<Error | null> {
+  const { error } = await client.from('tasks').upsert(
+    {
+      id: t.id,
+      user_id: userId,
+      title: t.title,
+      done: t.done,
+      due_date: t.dueDate,
+      project_slug: t.projectSlug,
+      labels: t.labels,
+      sort_order: t.sortOrder,
+    },
+    { onConflict: 'id' },
+  )
+  return error
+}
+
+export async function deleteTaskRemote(
+  client: SupabaseClient,
+  taskId: string,
+): Promise<Error | null> {
+  const { error } = await client.from('tasks').delete().eq('id', taskId)
+  return error
+}
+
+export async function upsertTemplateRemote(
+  client: SupabaseClient,
+  userId: string,
+  tpl: ProjectTemplate,
+): Promise<Error | null> {
+  const { error } = await client.from('project_templates').upsert(
+    {
+      id: tpl.id,
+      user_id: userId,
+      name: tpl.name,
+      stages: tpl.stages,
+    },
+    { onConflict: 'id' },
+  )
+  return error
+}
+
+export async function deleteTemplateRemote(
+  client: SupabaseClient,
+  templateId: string,
+): Promise<Error | null> {
+  const { error } = await client
+    .from('project_templates')
+    .delete()
+    .eq('id', templateId)
   return error
 }

@@ -7,4 +7,9 @@ test.describe('экран входа', () => {
       page.getByRole('heading', { name: /вход в приложение/i }),
     ).toBeVisible()
   })
+
+  test('заголовок вкладки содержит Portfolio', async ({ page }) => {
+    await page.goto('/')
+    await expect(page).toHaveTitle(/portfolio/i)
+  })
 })

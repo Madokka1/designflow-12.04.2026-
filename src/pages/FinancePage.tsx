@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { AddTransactionModal } from '../components/AddTransactionModal'
 import { formatRubDots, parseAmountRub } from '../lib/parseAmountRub'
 import { getProjectSection } from '../lib/projectSection'
@@ -61,9 +61,21 @@ const LOG_TABS: { id: LogTab; label: string }[] = [
 ]
 
 export function FinancePage() {
+  const location = useLocation()
   const { projects, financeTransactions, addFinanceTransaction } = useProjects()
   const [logTab, setLogTab] = useState<LogTab>('all')
   const [transactionModalOpen, setTransactionModalOpen] = useState(false)
+
+  useEffect(() => {
+    const hash = location.hash.replace(/^#/, '')
+    if (!hash.startsWith('finance-tx-')) return
+    window.setTimeout(() => {
+      document.getElementById(hash)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+    }, 120)
+  }, [location.hash, financeTransactions.length])
 
   const stats = useMemo(() => {
     let projectsTotal = 0
@@ -264,7 +276,8 @@ export function FinancePage() {
                 ) : (
                   <div
                     key={`tx-${row.tx.id}`}
-                    className={`flex flex-row items-center justify-between gap-4 border-t ${BORDER_ROW} px-5 py-5 first:border-t-0 first:pt-0 sm:px-5`}
+                    id={`finance-tx-${row.tx.id}`}
+                    className={`scroll-mt-24 flex flex-row items-center justify-between gap-4 border-t ${BORDER_ROW} px-5 py-5 first:border-t-0 first:pt-0 sm:px-5`}
                   >
                     <p className="min-w-0 flex-1 text-[clamp(1.25rem,3vw,2rem)] font-light leading-[0.9] tracking-[-0.09em]">
                       {row.tx.title}

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, Navigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { CreateStageModal } from '../components/CreateStageModal'
 import { ProjectFormModal } from '../components/ProjectFormModal'
 import { StageDetailModal } from '../components/StageDetailModal'
@@ -78,6 +78,7 @@ function StageRow({
 
 export function ProjectDetailPage() {
   const { slug } = useParams<{ slug: string }>()
+  const navigate = useNavigate()
   const {
     getProjectBySlug,
     addProjectStage,
@@ -88,6 +89,11 @@ export function ProjectDetailPage() {
     isStageTimerSessionActive,
     getProjectTrackedSeconds,
     toggleStageChecklistItem,
+    clients,
+    getClientById,
+    setProjectArchived,
+    saveProjectAsTemplate,
+    duplicateProject,
   } = useProjects()
   const { getNotesByProjectSlug } = useNotesContext()
   const project = slug ? getProjectBySlug(slug) : undefined
@@ -105,6 +111,9 @@ export function ProjectDetailPage() {
 
   const tags = project.tags ?? CARD_FALLBACK_TAGS
   const stages = project.stages ?? DEFAULT_PROJECT_STAGES
+  const linkedClient = project.clientId
+    ? getClientById(project.clientId)
+    : undefined
   const detailStage = selectedStage
     ? (stages.find((s) => s.id === selectedStage.id) ?? selectedStage)
     : null
@@ -121,16 +130,56 @@ export function ProjectDetailPage() {
             {project.client}
           </p>
         </div>
-        <button
-          type="button"
-          className="h-8 shrink-0 rounded-full bg-fill-contrast-bg px-5 text-sm font-light tracking-[-0.05em] text-fill-contrast-fg transition-opacity hover:opacity-90"
-          onClick={() => {
-            setProjectEditNonce((n) => n + 1)
-            setProjectEditOpen(true)
-          }}
-        >
-          Редактировать проект
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className="h-8 shrink-0 rounded-full bg-fill-contrast-bg px-5 text-sm font-light tracking-[-0.05em] text-fill-contrast-fg transition-opacity hover:opacity-90"
+            onClick={() => {
+              setProjectEditNonce((n) => n + 1)
+              setProjectEditOpen(true)
+            }}
+          >
+            Редактировать проект
+          </button>
+          <button
+            type="button"
+            className="h-8 shrink-0 rounded-full border border-card-border px-4 text-sm font-light tracking-[-0.04em] text-ink transition-colors hover:bg-ink/[0.04]"
+            onClick={() =>
+              setProjectArchived(slug, !project.archived)
+            }
+          >
+            {project.archived ? 'Вернуть из архива' : 'В архив'}
+          </button>
+          <button
+            type="button"
+            className="h-8 shrink-0 rounded-full border border-card-border px-4 text-sm font-light tracking-[-0.04em] text-ink transition-colors hover:bg-ink/[0.04]"
+            onClick={() => {
+              const name = window.prompt('Название шаблона', project.title)
+              if (name === null) return
+              saveProjectAsTemplate(slug, name)
+            }}
+          >
+            Шаблон из проекта
+          </button>
+          <button
+            type="button"
+            className="h-8 shrink-0 rounded-full border border-card-border px-4 text-sm font-light tracking-[-0.04em] text-ink transition-colors hover:bg-ink/[0.04]"
+            onClick={() => {
+              const next = duplicateProject(slug)
+              if (next) navigate(`/projects/${next}`)
+            }}
+          >
+            Дублировать проект
+          </button>
+          {linkedClient ? (
+            <Link
+              to={`/clients?focus=${encodeURIComponent(project.clientId!)}`}
+              className="h-8 inline-flex shrink-0 items-center rounded-full border border-card-border px-4 text-sm font-light tracking-[-0.04em] text-ink transition-colors hover:bg-ink/[0.04]"
+            >
+              Карточка: {linkedClient.name}
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       <div className="mt-10 flex flex-col gap-10 xl:flex-row xl:items-start xl:gap-10">
@@ -277,6 +326,7 @@ export function ProjectDetailPage() {
         submitLabel="Сохранить"
         initialForm={projectToForm(project)}
         zClassName="z-[65]"
+        clientsForPicker={clients}
         onClose={() => setProjectEditOpen(false)}
         onSubmit={(data) => {
           updateProject(slug, data)

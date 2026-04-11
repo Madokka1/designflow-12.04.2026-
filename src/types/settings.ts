@@ -27,6 +27,18 @@ export type AppSettings = {
    * Пароль входа в localStorage при этом не сохраняется.
    */
   readOnlyMode: boolean
+  /** Напоминания о приближающихся дедлайнах (браузерные уведомления). */
+  deadlineNotifyEnabled: boolean
+  /** За сколько календарных дней до даты показывать уведомление (включая день дедлайна). */
+  deadlineNotifyDaysBefore: number
+  /** Чат Telegram привязан (после /start в боте); синхронизируется из profiles.telegram_chat_id. */
+  telegramBotLinked: boolean
+  /** Напоминания о дедлайнах в Telegram (воркер с service_role). */
+  telegramDeadlineNotifyEnabled: boolean
+  /** За сколько дней до срока слать в Telegram (0–14). */
+  telegramDeadlineNotifyDaysBefore: number
+  /** Автовыход при простое, минуты; 0 — выключено. */
+  sessionIdleMinutes: number
 }
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
@@ -46,4 +58,10 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   supabaseAuthEmail: '',
   supabaseAuthPassword: '',
   readOnlyMode: false,
+  deadlineNotifyEnabled: false,
+  deadlineNotifyDaysBefore: 3,
+  telegramBotLinked: false,
+  telegramDeadlineNotifyEnabled: false,
+  telegramDeadlineNotifyDaysBefore: 3,
+  sessionIdleMinutes: 0,
 }

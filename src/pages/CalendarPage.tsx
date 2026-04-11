@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { CreateCalendarEventModal } from '../components/CreateCalendarEventModal'
 import { useProjects } from '../hooks/useProjects'
 import {
@@ -14,6 +14,10 @@ import type { Project } from '../types/project'
 const BORDER = 'border-card-border'
 
 const WEEKDAYS = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'] as const
+
+function isoDayKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 
 const MONTH_NAMES = [
   'Январь',
@@ -119,6 +123,7 @@ function collectCustomCalendarItems(
 }
 
 export function CalendarPage() {
+  const location = useLocation()
   const { projects, calendarCustomEvents, addCalendarCustomEvent } =
     useProjects()
   const now = new Date()
@@ -198,6 +203,28 @@ export function CalendarPage() {
       .sort((a, b) => a.date.getTime() - b.date.getTime())
   }, [allEvents, selected])
 
+  useEffect(() => {
+    const raw = location.hash.replace(/^#/, '')
+    const m = raw.match(/^cal-day-(\d{4})-(\d{2})-(\d{2})$/)
+    if (!m) return
+    const y = Number(m[1])
+    const mo = Number(m[2]) - 1
+    const day = Number(m[3])
+    if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(day)) return
+    const d = new Date(y, mo, day)
+    d.setHours(0, 0, 0, 0)
+    queueMicrotask(() => {
+      setCursor({ y, m: mo })
+      setSelected(d)
+    })
+    window.setTimeout(() => {
+      document.getElementById(raw)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+    }, 150)
+  }, [location.hash])
+
   return (
     <main className="relative z-10 mx-auto w-full max-w-[1840px] px-4 pb-16 pt-8 sm:px-10 sm:pt-10">
       <h1 className="text-[clamp(2.5rem,5vw,4rem)] font-light leading-[0.9] tracking-[-0.09em]">
@@ -259,6 +286,7 @@ export function CalendarPage() {
                   <button
                     key={i}
                     type="button"
+                    id={`cal-day-${isoDayKey(date)}`}
                     onClick={() =>
                       setSelected(
                         new Date(

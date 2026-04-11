@@ -37,4 +37,8 @@ export type Project = {
   stages?: readonly ProjectStage[]
   /** Комментарий из формы создания/редактирования */
   comment?: string
+  /** Скрыт из списка активных проектов */
+  archived?: boolean
+  /** Справочник clients (опционально) */
+  clientId?: string | null
 }

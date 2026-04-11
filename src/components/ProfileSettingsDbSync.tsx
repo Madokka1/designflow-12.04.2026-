@@ -26,6 +26,8 @@ function settingsDbSnapshot(s: AppSettings): string {
     supabaseAnonKey: s.supabaseAnonKey,
     supabaseAuthEmail: s.supabaseAuthEmail,
     readOnlyMode: s.readOnlyMode,
+    telegramDeadlineNotifyEnabled: s.telegramDeadlineNotifyEnabled,
+    telegramDeadlineNotifyDaysBefore: s.telegramDeadlineNotifyDaysBefore,
   })
 }
 

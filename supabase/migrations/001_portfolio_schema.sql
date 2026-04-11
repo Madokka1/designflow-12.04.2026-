@@ -1,6 +1,7 @@
 -- Portfolio / проекты — схема для Supabase (PostgreSQL)
 -- Выполнить в SQL Editor: весь файл целиком.
 -- Требуется включённый Auth; строки привязываются к auth.users (id).
+-- Повторный запуск безопасен: политики RLS перед созданием снимаются (DROP POLICY IF EXISTS).
 
 -- ---------------------------------------------------------------------------
 -- Профиль пользователя (1:1 с auth.users). Ключи Supabase не храним в БД.
@@ -158,6 +159,16 @@ alter table public.project_stages enable row level security;
 alter table public.finance_transactions enable row level security;
 alter table public.calendar_custom_events enable row level security;
 alter table public.notes enable row level security;
+
+-- Идемпотентность: повторный запуск скрипта (политики уже есть)
+drop policy if exists "profiles_select_own" on public.profiles;
+drop policy if exists "profiles_update_own" on public.profiles;
+drop policy if exists "profiles_insert_own" on public.profiles;
+drop policy if exists "projects_all_own" on public.projects;
+drop policy if exists "project_stages_all_via_project" on public.project_stages;
+drop policy if exists "finance_all_own" on public.finance_transactions;
+drop policy if exists "calendar_events_all_own" on public.calendar_custom_events;
+drop policy if exists "notes_all_own" on public.notes;
 
 -- profiles: только своя строка
 create policy "profiles_select_own"

@@ -32,6 +32,21 @@ const ProjectsPage = lazy(() =>
 const SettingsPage = lazy(() =>
   import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
 )
+const TasksPage = lazy(() =>
+  import('./pages/TasksPage').then((m) => ({ default: m.TasksPage })),
+)
+const ClientsPage = lazy(() =>
+  import('./pages/ClientsPage').then((m) => ({ default: m.ClientsPage })),
+)
+const TemplatesPage = lazy(() =>
+  import('./pages/TemplatesPage').then((m) => ({ default: m.TemplatesPage })),
+)
+const DeadlinesPage = lazy(() =>
+  import('./pages/DeadlinesPage').then((m) => ({ default: m.DeadlinesPage })),
+)
+const ReportsPage = lazy(() =>
+  import('./pages/ReportsPage').then((m) => ({ default: m.ReportsPage })),
+)
 
 function PageFallback() {
   return (
@@ -90,6 +105,46 @@ function AppRoutes() {
           element={
             <Suspense fallback={<PageFallback />}>
               <CalendarPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="tasks"
+          element={
+            <Suspense fallback={<PageFallback />}>
+              <TasksPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="clients"
+          element={
+            <Suspense fallback={<PageFallback />}>
+              <ClientsPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="templates"
+          element={
+            <Suspense fallback={<PageFallback />}>
+              <TemplatesPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="deadlines"
+          element={
+            <Suspense fallback={<PageFallback />}>
+              <DeadlinesPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="reports"
+          element={
+            <Suspense fallback={<PageFallback />}>
+              <ReportsPage />
             </Suspense>
           }
         />

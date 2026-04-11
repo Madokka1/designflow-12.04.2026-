@@ -9,6 +9,12 @@ import {
   type ReactNode,
 } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
+import { useSettings } from '../hooks/useSettings'
+import {
+  fetchNoteRevisions,
+  insertNoteRevision,
+} from '../lib/noteRevisionsSupabase'
 import {
   BlockInsertMenu,
   type MenuAnchor,
@@ -35,6 +41,20 @@ function formatCreated(iso: string) {
   }
 }
 
+function formatRevisionAt(iso: string) {
+  try {
+    return new Date(iso).toLocaleString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return iso
+  }
+}
+
 function readImageFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     if (!file.type.startsWith('image/')) {
@@ -50,9 +70,18 @@ function readImageFileAsDataUrl(file: File): Promise<string> {
 
 export function NoteEditorPage() {
   const { noteSlug } = useParams<{ noteSlug: string }>()
+  const { client, session } = useAuth()
+  const { settings } = useSettings()
+  const readOnly = settings.readOnlyMode
+  const userId = session?.user?.id ?? null
   const { getNoteBySlug, updateNote } = useNotesContext()
   const { projects } = useProjects()
   const note = noteSlug ? getNoteBySlug(noteSlug) : undefined
+
+  const [revisions, setRevisions] = useState<
+    { id: string; createdAt: string; snapshot: Note }[]
+  >([])
+  const [revLoading, setRevLoading] = useState(false)
 
   const [draft, setDraft] = useState<Note | null>(null)
   const [previewMode, setPreviewMode] = useState(false)
@@ -105,6 +134,25 @@ export function NoteEditorPage() {
       setMenu(null)
     }
   }, [previewMode])
+
+  useEffect(() => {
+    if (!noteSlug || !client || !userId) {
+      setRevisions([])
+      setRevLoading(false)
+      return
+    }
+    let cancelled = false
+    setRevLoading(true)
+    void fetchNoteRevisions(client, userId, noteSlug).then((list) => {
+      if (!cancelled) {
+        setRevisions(list)
+        setRevLoading(false)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [noteSlug, client, userId])
 
   const toggleProjectAttachment = useCallback((projectSlug: string) => {
     setDraft((d) => {
@@ -229,6 +277,25 @@ export function NoteEditorPage() {
           >
             К содержимому
           </button>
+          <button
+            type="button"
+            className="h-8 shrink-0 rounded-full border border-[rgba(10,10,10,0.32)] px-4 text-sm font-light tracking-[-0.05em] text-ink hover:bg-ink/[0.04] disabled:opacity-40"
+            disabled={readOnly || !client || !userId}
+            title="Сохранить снимок в историю (без ограничения по времени)"
+            onClick={() => {
+              if (!noteSlug || !client || !userId || !draft) return
+              void (async () => {
+                const err = await insertNoteRevision(client, userId, noteSlug, draft)
+                if (err) window.alert(err.message)
+                else {
+                  const list = await fetchNoteRevisions(client, userId, noteSlug)
+                  setRevisions(list)
+                }
+              })()
+            }}
+          >
+            Сохранить версию
+          </button>
         </div>
       </div>
 
@@ -337,6 +404,83 @@ export function NoteEditorPage() {
               </ul>
             )}
           </div>
+
+          <div className="mt-8 border-t border-[rgba(10,10,10,0.15)] pt-6 dark:border-white/10">
+            <p className="text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink/70">
+              Версии (Supabase)
+            </p>
+            {readOnly ? (
+              <p className="mt-2 text-xs font-light text-ink/45">
+                В режиме только чтения новые ревизии не пишутся.
+              </p>
+            ) : null}
+            {revLoading ? (
+              <p className="mt-2 text-xs font-light text-ink/45">Загрузка…</p>
+            ) : revisions.length === 0 ? (
+              <p className="mt-2 text-xs font-light text-ink/45">
+                Пока нет сохранённых версий (снимок предыдущего состояния не чаще чем
+                раз в ~1,5 мин. при правках).
+              </p>
+            ) : (
+              <ul className="mt-3 flex max-h-[220px] flex-col gap-2 overflow-y-auto pr-1">
+                {revisions.map((r) => (
+                  <li
+                    key={r.id}
+                    className="flex flex-col gap-1.5 border border-card-border p-2.5"
+                  >
+                    <span className="text-[10px] font-light text-ink/55">
+                      {formatRevisionAt(r.createdAt)}
+                    </span>
+                    <button
+                      type="button"
+                      className="text-left text-xs font-light text-ink underline-offset-2 hover:underline disabled:opacity-40"
+                      disabled={previewMode || readOnly || !noteSlug}
+                      onClick={() => {
+                        if (
+                          !window.confirm(
+                            'Заменить текущее содержимое заметки на эту версию?',
+                          )
+                        ) {
+                          return
+                        }
+                        const snap = r.snapshot
+                        const blocks = snap.blocks.map((b) => ({
+                          ...b,
+                          todos: b.todos?.map((t) => ({ ...t })),
+                        }))
+                        const attached = [...(snap.attachedProjectSlugs ?? [])]
+                        updateNote(noteSlug, {
+                          title: snap.title,
+                          description: snap.description,
+                          blocks,
+                          attachedProjectSlugs: attached,
+                        })
+                        setDraft((d) =>
+                          d
+                            ? {
+                                ...d,
+                                title: snap.title,
+                                description: snap.description,
+                                blocks,
+                                attachedProjectSlugs: attached,
+                              }
+                            : d,
+                        )
+                        if (client && userId) {
+                          void fetchNoteRevisions(client, userId, noteSlug).then(
+                            setRevisions,
+                          )
+                        }
+                      }}
+                    >
+                      Восстановить
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
           <Link
             to="/notes"
             className="mt-8 inline-flex text-sm font-light tracking-[-0.02em] text-ink underline-offset-4 hover:underline"

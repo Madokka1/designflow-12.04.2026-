@@ -129,9 +129,6 @@ export function NotesIndexPage() {
         <h1 className="text-[clamp(2.5rem,6vw,4rem)] font-light leading-[0.9] tracking-[-0.09em]">
           Заметки
         </h1>
-        <p className="text-[32px] font-light leading-[0.9] tracking-[-0.09em] text-ink/80">
-          Список страниц
-        </p>
       </div>
 
       <div className="mt-10 flex flex-col gap-10">

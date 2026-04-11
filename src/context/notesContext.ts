@@ -18,6 +18,8 @@ export type NotesContextValue = {
   deleteNote: (slug: string) => void
   /** Полная замена списка (импорт резервной копии) */
   replaceAllNotes: (next: Note[]) => void
+  /** Слияние по slug: существующие заметки перезаписываются, новые добавляются. */
+  mergeNotesBySlug: (incoming: Note[]) => void
 }
 
 export const NotesContext = createContext<NotesContextValue | null>(null)

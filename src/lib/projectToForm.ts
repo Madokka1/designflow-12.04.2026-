@@ -28,6 +28,7 @@ export function projectToForm(p: Project): CreateProjectForm {
   return {
     title: p.title,
     client: p.client,
+    clientId: p.clientId ?? '',
     cost: String(Math.max(0, rub)),
     comment: p.comment ?? '',
     deadline: p.deadline === '—' ? '' : p.deadline,

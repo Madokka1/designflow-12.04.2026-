@@ -25,11 +25,19 @@ import {
   appendTimerSessionLog,
   replaceTimerSessionLog,
 } from '../lib/timerSessionsStorage'
+import { cloneStagesWithNewIds } from '../lib/cloneStages'
+import { mergeProjectsBySlug, mergeRecordsById } from '../lib/portfolioMerge'
 import {
+  deleteClientRemote,
+  deleteTaskRemote,
+  deleteTemplateRemote,
   fetchPortfolioBundle,
   upsertCalendarEventRemote,
+  upsertClientRemote,
   upsertFinanceTransactionRemote,
   upsertProjectToSupabase,
+  upsertTaskRemote,
+  upsertTemplateRemote,
   type PortfolioBundle,
 } from '../lib/portfolioSupabase'
 import {
@@ -41,7 +49,10 @@ import {
 import type { CalendarCustomEvent } from '../types/calendarCustomEvent'
 import type { FinanceTransaction } from '../types/financeTransaction'
 import type { Project, ProjectStage } from '../types/project'
+import type { ProjectTemplate } from '../types/projectTemplate'
 import type { TimerSessionLogEntry } from '../types/timerSessionLog'
+import type { WorkspaceClient } from '../types/workspaceClient'
+import type { WorkspaceTask } from '../types/workspaceTask'
 import { ProjectsContext, type RunningStageTimer } from './projectsContext'
 
 function formToProject(
@@ -59,6 +70,7 @@ function formToProject(
     data.paymentStatus,
     data.section,
   ] as const
+  const cid = data.clientId.trim()
   return {
     id,
     slug,
@@ -70,6 +82,8 @@ function formToProject(
     tags,
     stages: [...DEFAULT_PROJECT_STAGES],
     comment: data.comment.trim() || undefined,
+    archived: false,
+    clientId: cid ? cid : null,
   }
 }
 
@@ -84,6 +98,7 @@ function applyProjectForm(p: Project, data: CreateProjectForm): Project {
     data.paymentStatus,
     data.section,
   ] as const
+  const cid = data.clientId.trim()
   return {
     ...p,
     title,
@@ -92,6 +107,7 @@ function applyProjectForm(p: Project, data: CreateProjectForm): Project {
     deadline,
     tags: [...tags],
     comment: data.comment.trim() || undefined,
+    clientId: cid ? cid : null,
   }
 }
 
@@ -182,14 +198,21 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     () => getTimerSessionLog(),
   )
   const timerRemoteSyncedFor = useRef<string | null>(null)
+  const readOnlyPrev = useRef(readOnly)
   const [financeTransactions, setFinanceTransactions] = useState<
     FinanceTransaction[]
   >([])
   const [calendarCustomEvents, setCalendarCustomEvents] = useState<
     CalendarCustomEvent[]
   >([])
+  const [clients, setClients] = useState<WorkspaceClient[]>([])
+  const [tasks, setTasks] = useState<WorkspaceTask[]>([])
+  const [templates, setTemplates] = useState<ProjectTemplate[]>([])
   const financeRef = useRef(financeTransactions)
   const calendarRef = useRef(calendarCustomEvents)
+  const clientsRef = useRef(clients)
+  const tasksRef = useRef(tasks)
+  const templatesRef = useRef(templates)
   const portfolioLoadedFor = useRef<string | null>(null)
   const persistProjectTimers = useRef<Map<string, number>>(new Map())
 
@@ -212,12 +235,34 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
   }, [calendarCustomEvents])
 
   useEffect(() => {
+    clientsRef.current = clients
+  }, [clients])
+
+  useEffect(() => {
+    tasksRef.current = tasks
+  }, [tasks])
+
+  useEffect(() => {
+    templatesRef.current = templates
+  }, [templates])
+
+  useEffect(() => {
     if (session?.user?.id) return
     portfolioLoadedFor.current = null
     setProjects([])
     setFinanceTransactions([])
     setCalendarCustomEvents([])
+    setClients([])
+    setTasks([])
+    setTemplates([])
   }, [session?.user?.id])
+
+  useEffect(() => {
+    if (readOnlyPrev.current && !readOnly) {
+      timerRemoteSyncedFor.current = null
+    }
+    readOnlyPrev.current = readOnly
+  }, [readOnly])
 
   const reportSaveError = useCallback(
     (err: Error | null) => {
@@ -260,6 +305,22 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     setProjects(payload.projects)
     setFinanceTransactions(payload.financeTransactions)
     setCalendarCustomEvents(payload.calendarCustomEvents)
+    setClients(payload.clients ?? [])
+    setTasks(payload.tasks ?? [])
+    setTemplates(payload.templates ?? [])
+  }, [])
+
+  const mergePortfolioData = useCallback((payload: PortfolioBundle) => {
+    setProjects((prev) => mergeProjectsBySlug(prev, payload.projects))
+    setFinanceTransactions((prev) =>
+      mergeRecordsById(prev, payload.financeTransactions),
+    )
+    setCalendarCustomEvents((prev) =>
+      mergeRecordsById(prev, payload.calendarCustomEvents),
+    )
+    setClients((prev) => mergeRecordsById(prev, payload.clients ?? []))
+    setTasks((prev) => mergeRecordsById(prev, payload.tasks ?? []))
+    setTemplates((prev) => mergeRecordsById(prev, payload.templates ?? []))
   }, [])
 
   const syncPortfolioToRemote = useCallback(async () => {
@@ -276,6 +337,18 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       }
       for (const c of calendarRef.current) {
         const e = await upsertCalendarEventRemote(client, userId, c)
+        if (e) throw e
+      }
+      for (const cl of clientsRef.current) {
+        const e = await upsertClientRemote(client, userId, cl)
+        if (e) throw e
+      }
+      for (const t of tasksRef.current) {
+        const e = await upsertTaskRemote(client, userId, t)
+        if (e) throw e
+      }
+      for (const tpl of templatesRef.current) {
+        const e = await upsertTemplateRemote(client, userId, tpl)
         if (e) throw e
       }
       touchSaved()
@@ -298,6 +371,9 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         setProjects(bundle.projects)
         setFinanceTransactions(bundle.financeTransactions)
         setCalendarCustomEvents(bundle.calendarCustomEvents)
+        setClients(bundle.clients ?? [])
+        setTasks(bundle.tasks ?? [])
+        setTemplates(bundle.templates ?? [])
         portfolioLoadedFor.current = userId
         setPortfolioSync({ kind: 'saved', at: Date.now() })
       })
@@ -328,7 +404,10 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         const local = getTimerSessionLog()
         for (const e of local) {
           if (cancelled) return
-          if (!remote.some((r) => r.id === e.id)) {
+          if (
+            !readOnly &&
+            !remote.some((r) => r.id === e.id)
+          ) {
             await insertTimerSessionLogRow(client, userId, e)
           }
         }
@@ -348,7 +427,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [client, session?.user?.id])
+  }, [client, session?.user?.id, readOnly])
 
   const recordTimerSession = useCallback(
     (projectSlug: string, stageId: string, seconds: number) => {
@@ -609,7 +688,10 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
   )
 
   const addProject = useCallback(
-    (data: CreateProjectForm) => {
+    (
+      data: CreateProjectForm,
+      options?: { stages?: readonly ProjectStage[] },
+    ) => {
       setProjects((prev) => {
         const taken = new Set(prev.map((p) => p.slug))
         const slug = uniqueSlug(data.title.trim() || 'Проект', taken)
@@ -617,7 +699,13 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
           typeof crypto !== 'undefined' && crypto.randomUUID
             ? crypto.randomUUID()
             : `p-${Date.now()}`
-        const newP = formToProject(data, id, slug)
+        let newP = formToProject(data, id, slug)
+        if (options?.stages?.length) {
+          newP = {
+            ...newP,
+            stages: cloneStagesWithNewIds(options.stages),
+          }
+        }
         if (client && userId && !readOnly) {
           setPortfolioSync({ kind: 'saving' })
           void upsertProjectToSupabase(client, userId, newP).then((e) =>
@@ -628,6 +716,245 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       })
     },
     [client, userId, readOnly, reportSaveError, setPortfolioSync],
+  )
+
+  const addProjectFromTemplate = useCallback(
+    (data: CreateProjectForm, templateId: string) => {
+      const tpl = templatesRef.current.find((t) => t.id === templateId)
+      addProject(data, tpl?.stages?.length ? { stages: tpl.stages } : undefined)
+    },
+    [addProject],
+  )
+
+  const duplicateProject = useCallback(
+    (projectSlug: string): string | null => {
+      const p = projectsRef.current.find((x) => x.slug === projectSlug)
+      if (!p) return null
+      const prev = projectsRef.current
+      const taken = new Set(prev.map((x) => x.slug))
+      const title = `${p.title.trim() || 'Проект'} (копия)`
+      const slug = uniqueSlug(title, taken)
+      const id =
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `p-${Date.now()}`
+      const baseStages = p.stages?.length ? [...p.stages] : [...DEFAULT_PROJECT_STAGES]
+      const stages = cloneStagesWithNewIds(baseStages).map((s) => ({
+        ...s,
+        timeSpentSeconds: undefined,
+      }))
+      const newP: Project = {
+        ...p,
+        id,
+        slug,
+        title,
+        stages,
+        archived: false,
+      }
+      setProjects((list) => [newP, ...list])
+      if (client && userId && !readOnly) {
+        setPortfolioSync({ kind: 'saving' })
+        void upsertProjectToSupabase(client, userId, newP).then((e) =>
+          reportSaveError(e),
+        )
+      }
+      return slug
+    },
+    [client, userId, readOnly, reportSaveError, setPortfolioSync],
+  )
+
+  const setProjectArchived = useCallback(
+    (projectSlug: string, archived: boolean) => {
+      setProjects((prev) =>
+        prev.map((p) => (p.slug === projectSlug ? { ...p, archived } : p)),
+      )
+      schedulePersistProject(projectSlug)
+    },
+    [schedulePersistProject],
+  )
+
+  const saveProjectAsTemplate = useCallback(
+    (projectSlug: string, templateName: string) => {
+      const p = projectsRef.current.find((x) => x.slug === projectSlug)
+      if (!p?.stages?.length) return
+      const stages = p.stages
+      const id =
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `tpl-${Date.now()}`
+      const tpl: ProjectTemplate = {
+        id,
+        name: templateName.trim() || p.title,
+        stages: stages.map((s) => ({ ...s })),
+      }
+      setTemplates((prev) => [tpl, ...prev])
+      if (client && userId && !readOnly) {
+        setPortfolioSync({ kind: 'saving' })
+        void upsertTemplateRemote(client, userId, tpl).then((e) =>
+          reportSaveError(e),
+        )
+      }
+    },
+    [client, userId, readOnly, reportSaveError, setPortfolioSync],
+  )
+
+  const getClientById = useCallback(
+    (id: string) => clients.find((c) => c.id === id),
+    [clients],
+  )
+
+  const addClient = useCallback(
+    (data: Omit<WorkspaceClient, 'id'>) => {
+      const id =
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `cl-${Date.now()}`
+      const row: WorkspaceClient = {
+        id,
+        name: data.name.trim() || 'Клиент',
+        email: data.email ?? '',
+        phone: data.phone ?? '',
+        company: data.company ?? '',
+        notes: data.notes ?? '',
+      }
+      setClients((prev) =>
+        [...prev, row].sort((a, b) => a.name.localeCompare(b.name, 'ru')),
+      )
+      if (client && userId && !readOnly) {
+        setPortfolioSync({ kind: 'saving' })
+        void upsertClientRemote(client, userId, row).then((e) =>
+          reportSaveError(e),
+        )
+      }
+      return row
+    },
+    [client, userId, readOnly, reportSaveError, setPortfolioSync],
+  )
+
+  const updateClient = useCallback(
+    (id: string, patch: Partial<Omit<WorkspaceClient, 'id'>>) => {
+      setClients((prev) => {
+        const next = prev.map((c) => {
+          if (c.id !== id) return c
+          const merged = { ...c, ...patch }
+          if (patch.name !== undefined) {
+            merged.name = patch.name.trim() || c.name
+          }
+          return merged
+        })
+        const updated = next.find((c) => c.id === id)
+        if (updated && client && userId && !readOnly) {
+          setPortfolioSync({ kind: 'saving' })
+          void upsertClientRemote(client, userId, updated).then((e) =>
+            reportSaveError(e),
+          )
+        }
+        return next.sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+      })
+    },
+    [client, userId, readOnly, reportSaveError, setPortfolioSync],
+  )
+
+  const deleteClient = useCallback(
+    (id: string) => {
+      const slugs = projectsRef.current
+        .filter((p) => p.clientId === id)
+        .map((p) => p.slug)
+      setClients((prev) => prev.filter((c) => c.id !== id))
+      setProjects((prev) =>
+        prev.map((p) => (p.clientId === id ? { ...p, clientId: null } : p)),
+      )
+      if (client && userId && !readOnly) {
+        void deleteClientRemote(client, id)
+      }
+      for (const s of slugs) schedulePersistProject(s)
+    },
+    [client, userId, readOnly, schedulePersistProject],
+  )
+
+  const addTask = useCallback(
+    (
+      partial: Omit<WorkspaceTask, 'id' | 'sortOrder'> & { sortOrder?: number },
+    ) => {
+      const id =
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `task-${Date.now()}`
+      const sortOrder =
+        partial.sortOrder ??
+        tasksRef.current.reduce((m, t) => Math.max(m, t.sortOrder), -1) + 1
+      const row: WorkspaceTask = {
+        id,
+        title: partial.title.trim() || 'Задача',
+        done: partial.done ?? false,
+        dueDate: partial.dueDate ?? '',
+        projectSlug: partial.projectSlug ?? null,
+        labels: partial.labels ?? [],
+        sortOrder,
+      }
+      setTasks((prev) => [...prev, row])
+      if (client && userId && !readOnly) {
+        setPortfolioSync({ kind: 'saving' })
+        void upsertTaskRemote(client, userId, row).then((e) => reportSaveError(e))
+      }
+      return row
+    },
+    [client, userId, readOnly, reportSaveError, setPortfolioSync],
+  )
+
+  const updateTask = useCallback(
+    (id: string, patch: Partial<Omit<WorkspaceTask, 'id'>>) => {
+      setTasks((prev) => {
+        const next = prev.map((t) => (t.id === id ? { ...t, ...patch } : t))
+        const updated = next.find((t) => t.id === id)
+        if (updated && client && userId && !readOnly) {
+          setPortfolioSync({ kind: 'saving' })
+          void upsertTaskRemote(client, userId, updated).then((e) =>
+            reportSaveError(e),
+          )
+        }
+        return next
+      })
+    },
+    [client, userId, readOnly, reportSaveError, setPortfolioSync],
+  )
+
+  const toggleTaskDone = useCallback(
+    (id: string) => {
+      setTasks((prev) => {
+        const next = prev.map((t) =>
+          t.id === id ? { ...t, done: !t.done } : t,
+        )
+        const updated = next.find((t) => t.id === id)
+        if (updated && client && userId && !readOnly) {
+          void upsertTaskRemote(client, userId, updated).then((e) =>
+            reportSaveError(e),
+          )
+        }
+        return next
+      })
+    },
+    [client, userId, readOnly, reportSaveError],
+  )
+
+  const deleteTask = useCallback(
+    (id: string) => {
+      setTasks((prev) => prev.filter((t) => t.id !== id))
+      if (client && userId && !readOnly) {
+        void deleteTaskRemote(client, id)
+      }
+    },
+    [client, userId, readOnly],
+  )
+
+  const deleteTemplate = useCallback(
+    (id: string) => {
+      setTemplates((prev) => prev.filter((t) => t.id !== id))
+      if (client && userId && !readOnly) {
+        void deleteTemplateRemote(client, id)
+      }
+    },
+    [client, userId, readOnly],
   )
 
   const updateProject = useCallback(
@@ -712,11 +1039,15 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       calendarCustomEvents,
       addCalendarCustomEvent,
       addProject,
+      addProjectFromTemplate,
       updateProject,
       addProjectStage,
       updateProjectStage,
       removeProjectStage,
       getProjectBySlug,
+      setProjectArchived,
+      saveProjectAsTemplate,
+      duplicateProject,
       runningStageTimer,
       startStageTimer,
       stopStageTimer,
@@ -732,7 +1063,20 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       timerSessionLog,
       clearTimerSessionLog,
       replacePortfolioData,
+      mergePortfolioData,
       syncPortfolioToRemote,
+      clients,
+      getClientById,
+      addClient,
+      updateClient,
+      deleteClient,
+      tasks,
+      addTask,
+      updateTask,
+      toggleTaskDone,
+      deleteTask,
+      templates,
+      deleteTemplate,
     }),
     [
       projects,
@@ -741,11 +1085,15 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       calendarCustomEvents,
       addCalendarCustomEvent,
       addProject,
+      addProjectFromTemplate,
       updateProject,
       addProjectStage,
       updateProjectStage,
       removeProjectStage,
       getProjectBySlug,
+      setProjectArchived,
+      saveProjectAsTemplate,
+      duplicateProject,
       runningStageTimer,
       startStageTimer,
       stopStageTimer,
@@ -761,7 +1109,20 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       timerSessionLog,
       clearTimerSessionLog,
       replacePortfolioData,
+      mergePortfolioData,
       syncPortfolioToRemote,
+      clients,
+      getClientById,
+      addClient,
+      updateClient,
+      deleteClient,
+      tasks,
+      addTask,
+      updateTask,
+      toggleTaskDone,
+      deleteTask,
+      templates,
+      deleteTemplate,
     ],
   )
 

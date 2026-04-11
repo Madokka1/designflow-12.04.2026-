@@ -10,6 +10,7 @@ import type { Note } from '../types/note'
 import { useAuth } from '../hooks/useAuth'
 import { useSettings } from '../hooks/useSettings'
 import { newNoteId } from '../lib/newNoteId'
+import { insertNoteRevision } from '../lib/noteRevisionsSupabase'
 import {
   deleteNoteFromSupabase,
   fetchNotesFromSupabase,
@@ -23,6 +24,8 @@ import {
 } from './notesContext'
 
 const STORAGE_KEY = 'portfolio-notes-v2'
+/** Не чаще одной ревизии на заметку (снимок до сохранения), чтобы не забивать БД при автосохранении. */
+const NOTE_REVISION_MIN_INTERVAL_MS = 90_000
 
 function noteSlug(title: string): string {
   const base =
@@ -72,6 +75,8 @@ export function NotesProvider({ children }: { children: ReactNode }) {
 
   const [notes, setNotes] = useState<Note[]>(() => loadNotes())
   const notesMergedForUser = useRef<string | null>(null)
+  const readOnlyPrev = useRef(readOnly)
+  const noteRevisionLastAtRef = useRef<Map<string, number>>(new Map())
 
   useEffect(() => {
     saveNotes(notes)
@@ -81,6 +86,13 @@ export function NotesProvider({ children }: { children: ReactNode }) {
     if (userId) return
     notesMergedForUser.current = null
   }, [userId])
+
+  useEffect(() => {
+    if (readOnlyPrev.current && !readOnly) {
+      notesMergedForUser.current = null
+    }
+    readOnlyPrev.current = readOnly
+  }, [readOnly])
 
   useEffect(() => {
     if (!client || !userId) return
@@ -183,12 +195,32 @@ export function NotesProvider({ children }: { children: ReactNode }) {
       >,
     ) => {
       setNotes((prev) => {
+        const prevNote = prev.find((n) => n.slug === slug)
         const next = prev.map((n) => (n.slug === slug ? { ...n, ...patch } : n))
         const updated = next.find((n) => n.slug === slug)
-        if (updated && client && userId && !readOnly) {
+        if (updated && prevNote && client && userId && !readOnly) {
+          const snapshot =
+            typeof structuredClone === 'function'
+              ? structuredClone(prevNote)
+              : (JSON.parse(JSON.stringify(prevNote)) as Note)
           queueMicrotask(() => {
-            setPortfolioSync({ kind: 'saving' })
-            void upsertNoteToSupabase(client, userId, updated).then((res) => {
+            void (async () => {
+              setPortfolioSync({ kind: 'saving' })
+              const now = Date.now()
+              const last = noteRevisionLastAtRef.current.get(slug) ?? 0
+              if (now - last >= NOTE_REVISION_MIN_INTERVAL_MS) {
+                noteRevisionLastAtRef.current.set(slug, now)
+                const revErr = await insertNoteRevision(
+                  client,
+                  userId,
+                  slug,
+                  snapshot,
+                )
+                if (revErr) {
+                  console.warn('[note revision]', revErr.message)
+                }
+              }
+              const res = await upsertNoteToSupabase(client, userId, updated)
               if (!res) {
                 setPortfolioSync({
                   kind: 'error',
@@ -202,7 +234,7 @@ export function NotesProvider({ children }: { children: ReactNode }) {
                 )
               }
               touchSaved()
-            })
+            })()
           })
         }
         return next
@@ -225,6 +257,25 @@ export function NotesProvider({ children }: { children: ReactNode }) {
     setNotes(next.map(normalizeNote))
   }, [])
 
+  const mergeNotesBySlug = useCallback((incoming: Note[]) => {
+    setNotes((prev) => {
+      const bySlug = new Map(prev.map((n) => [n.slug, n]))
+      const order = prev.map((n) => n.slug)
+      const seen = new Set(order)
+      for (const n of incoming) {
+        const x = normalizeNote(n)
+        if (!seen.has(x.slug)) {
+          order.unshift(x.slug)
+          seen.add(x.slug)
+        }
+        bySlug.set(x.slug, x)
+      }
+      return order
+        .map((slug) => bySlug.get(slug)!)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    })
+  }, [])
+
   const value = useMemo(
     () => ({
       notes,
@@ -234,6 +285,7 @@ export function NotesProvider({ children }: { children: ReactNode }) {
       updateNote,
       deleteNote,
       replaceAllNotes,
+      mergeNotesBySlug,
     }),
     [
       notes,
@@ -243,6 +295,7 @@ export function NotesProvider({ children }: { children: ReactNode }) {
       updateNote,
       deleteNote,
       replaceAllNotes,
+      mergeNotesBySlug,
     ],
   )
 

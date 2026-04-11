@@ -12,6 +12,7 @@ import {
   PROJECT_STATUSES,
   type CreateProjectForm,
 } from '../types/projectForm'
+import type { WorkspaceClient } from '../types/workspaceClient'
 
 type Props = {
   title: string
@@ -20,6 +21,14 @@ type Props = {
   onClose: () => void
   onSubmit: (data: CreateProjectForm) => void
   zClassName?: string
+  /** Справочник клиентов: подставить имя и clientId */
+  clientsForPicker?: readonly WorkspaceClient[]
+  /** Шаблон этапов при создании проекта */
+  templateSelect?: {
+    value: string
+    onChange: (templateId: string) => void
+    options: { id: string; name: string }[]
+  }
 }
 
 function ChipRow<T extends string>({
@@ -62,6 +71,8 @@ export function ProjectFormModal({
   onClose,
   onSubmit,
   zClassName = 'z-50',
+  clientsForPicker,
+  templateSelect,
 }: Props) {
   const titleId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
@@ -122,6 +133,25 @@ export function ProjectFormModal({
             </h2>
 
             <div className="mt-10 flex max-w-[865px] flex-col gap-12 sm:gap-[50px]">
+              {templateSelect && templateSelect.options.length > 0 ? (
+                <label className="block max-w-md">
+                  <span className="mb-1 block text-[10px] font-light uppercase tracking-[-0.02em] text-ink/55">
+                    Шаблон этапов (необязательно)
+                  </span>
+                  <select
+                    className={`${inputClass} cursor-pointer`}
+                    value={templateSelect.value}
+                    onChange={(e) => templateSelect.onChange(e.target.value)}
+                  >
+                    <option value="">Без шаблона</option>
+                    {templateSelect.options.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
               <div className="flex flex-col gap-5">
                 <label className="block">
                   <span className="sr-only">Название проекта</span>
@@ -133,6 +163,38 @@ export function ProjectFormModal({
                     autoFocus
                   />
                 </label>
+                {clientsForPicker && clientsForPicker.length > 0 ? (
+                  <label className="block max-w-md">
+                    <span className="mb-1 block text-[10px] font-light uppercase tracking-[-0.02em] text-ink/55">
+                      Клиент из справочника
+                    </span>
+                    <select
+                      className={`${inputClass} cursor-pointer`}
+                      value={form.clientId}
+                      onChange={(e) => {
+                        const id = e.target.value
+                        if (!id) {
+                          update('clientId', '')
+                          return
+                        }
+                        const c = clientsForPicker.find((x) => x.id === id)
+                        setForm((f) => ({
+                          ...f,
+                          clientId: id,
+                          client: c?.name ?? f.client,
+                        }))
+                      }}
+                    >
+                      <option value="">Вручную (поле ниже)</option>
+                      {clientsForPicker.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                          {c.company ? ` — ${c.company}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
                 <label className="block">
                   <span className="sr-only">Клиент</span>
                   <input

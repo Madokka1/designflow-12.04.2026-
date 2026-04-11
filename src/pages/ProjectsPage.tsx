@@ -6,11 +6,12 @@ import { useProjects } from '../hooks/useProjects'
 import type { Project } from '../types/project'
 
 const FILTERS = [
-  'Все проекты',
+  'Все',
+  'Активные',
+  'Архив',
   'Разработка',
   'Поддержка',
   'Личные',
-  'Архив',
 ] as const
 
 const CARD_FALLBACK_TAGS = ['Ожидает оплаты', 'В работе', 'Разработка'] as const
@@ -66,13 +67,18 @@ function ProjectCard({ project }: { project: Project }) {
 }
 
 export function ProjectsPage() {
-  const { projects, addProject } = useProjects()
-  const [filter, setFilter] = useState<(typeof FILTERS)[number]>('Все проекты')
+  const { projects, addProject, addProjectFromTemplate, templates, clients } =
+    useProjects()
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]>('Активные')
   const [createOpen, setCreateOpen] = useState(false)
 
   const filteredProjects = useMemo(() => {
-    if (filter === 'Все проекты') return projects
-    return projects.filter((p) => getProjectSection(p) === filter)
+    if (filter === 'Все') return projects
+    if (filter === 'Активные') return projects.filter((p) => !p.archived)
+    if (filter === 'Архив') return projects.filter((p) => p.archived)
+    return projects.filter(
+      (p) => !p.archived && getProjectSection(p) === filter,
+    )
   }, [projects, filter])
 
   return (
@@ -137,7 +143,12 @@ export function ProjectsPage() {
       {createOpen ? (
         <CreateProjectModal
           onClose={() => setCreateOpen(false)}
-          onCreate={addProject}
+          templates={templates}
+          clients={clients}
+          onCreate={(data, templateId) => {
+            if (templateId) addProjectFromTemplate(data, templateId)
+            else addProject(data)
+          }}
         />
       ) : null}
     </>

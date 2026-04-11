@@ -21,6 +21,8 @@ export const PROJECT_SECTIONS = [
 export type CreateProjectForm = {
   title: string
   client: string
+  /** id из справочника clients (пусто — только текст client) */
+  clientId: string
   cost: string
   comment: string
   deadline: string
@@ -33,6 +35,7 @@ export function defaultProjectForm(): CreateProjectForm {
   return {
     title: '',
     client: '',
+    clientId: '',
     cost: '',
     comment: '',
     deadline: '',

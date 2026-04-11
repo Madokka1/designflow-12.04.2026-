@@ -1,0 +1,19 @@
+{
+  "name": "Portfolio",
+  "short_name": "Portfolio",
+  "description": "Проекты, финансы, календарь, заметки",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fafafa",
+  "theme_color": "#0a0a0a",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

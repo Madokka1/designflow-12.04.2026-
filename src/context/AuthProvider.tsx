@@ -11,7 +11,7 @@ import {
   createSupabaseBrowserClient,
   isSupabaseConfigFilled,
 } from '../lib/createSupabaseBrowserClient'
-import { getResolvedSupabaseConnection } from '../lib/resolveSupabaseConnection'
+import { resolveSupabaseConnectionStrings } from '../lib/resolveSupabaseConnection'
 import { AuthContext } from './authContext'
 
 function offlineAuthError(message: string): AuthError {
@@ -21,15 +21,19 @@ function offlineAuthError(message: string): AuthError {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { settings } = useSettings()
 
+  /** Зависимость только от URL/ключа: иначе акцент, тема и т.д. пересоздают клиент → сброс сессии и зацикливание sync профиля. */
   const client = useMemo<SupabaseClient | null>(() => {
-    const { url, anonKey } = getResolvedSupabaseConnection(settings)
+    const { url, anonKey } = resolveSupabaseConnectionStrings(
+      settings.supabaseUrl,
+      settings.supabaseAnonKey,
+    )
     if (!isSupabaseConfigFilled(url, anonKey)) return null
     try {
       return createSupabaseBrowserClient(url, anonKey)
     } catch {
       return null
     }
-  }, [settings])
+  }, [settings.supabaseUrl, settings.supabaseAnonKey])
 
   const [sessionForClient, setSessionForClient] = useState<Session | null>(null)
   const [clientReady, setClientReady] = useState(false)

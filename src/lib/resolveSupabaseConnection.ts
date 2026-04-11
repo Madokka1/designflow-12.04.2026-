@@ -11,17 +11,28 @@ function envAnonKey(): string {
   return typeof v === 'string' ? v.trim() : ''
 }
 
+/** URL и ключ: сначала из полей настроек, иначе из переменных окружения Vite. */
+export function resolveSupabaseConnectionStrings(
+  supabaseUrlSetting: string,
+  supabaseAnonKeySetting: string,
+): { url: string; anonKey: string } {
+  const fromSettingsUrl = supabaseUrlSetting.trim()
+  const fromSettingsKey = supabaseAnonKeySetting.trim()
+  return {
+    url: fromSettingsUrl || envUrl(),
+    anonKey: fromSettingsKey || envAnonKey(),
+  }
+}
+
 /** URL и ключ: сначала из настроек (localStorage), иначе из переменных окружения Vite. */
 export function getResolvedSupabaseConnection(settings: AppSettings): {
   url: string
   anonKey: string
 } {
-  const fromSettingsUrl = settings.supabaseUrl.trim()
-  const fromSettingsKey = settings.supabaseAnonKey.trim()
-  return {
-    url: fromSettingsUrl || envUrl(),
-    anonKey: fromSettingsKey || envAnonKey(),
-  }
+  return resolveSupabaseConnectionStrings(
+    settings.supabaseUrl,
+    settings.supabaseAnonKey,
+  )
 }
 
 export function hasResolvedSupabaseConnection(settings: AppSettings): boolean {

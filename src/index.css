@@ -116,6 +116,36 @@ body {
   animation: ui-drawer-bottom-in var(--ui-motion-duration) var(--ui-motion-ease) both;
 }
 
+@keyframes ui-mobile-nav-portal-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.ui-mobile-nav-portal-enter {
+  animation: ui-mobile-nav-portal-in var(--ui-motion-duration) var(--ui-motion-ease) both;
+}
+
+@keyframes ui-mobile-nav-link-in {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.ui-mobile-nav-link-anim {
+  animation: ui-mobile-nav-link-in var(--ui-motion-duration) var(--ui-motion-ease) both;
+}
+
 /* Тёмная тема: те же токены, что в @theme */
 html.dark {
   color-scheme: dark;

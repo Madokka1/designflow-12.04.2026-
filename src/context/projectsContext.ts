@@ -3,8 +3,11 @@ import type { CreateProjectForm } from '../types/projectForm'
 import type { CreateStageForm } from '../types/stageForm'
 import type { CalendarCustomEvent } from '../types/calendarCustomEvent'
 import type { FinanceTransaction } from '../types/financeTransaction'
-import type { Project } from '../types/project'
+import type { Project, ProjectStage } from '../types/project'
+import type { ProjectTemplate } from '../types/projectTemplate'
 import type { TimerSessionLogEntry } from '../types/timerSessionLog'
+import type { WorkspaceClient } from '../types/workspaceClient'
+import type { WorkspaceTask } from '../types/workspaceTask'
 import type { PortfolioBundle } from '../lib/portfolioSupabase'
 
 export type RunningStageTimer = {
@@ -27,7 +30,11 @@ export type ProjectsContextValue = {
   addCalendarCustomEvent: (
     data: Omit<CalendarCustomEvent, 'id'>,
   ) => void
-  addProject: (data: CreateProjectForm) => void
+  addProject: (
+    data: CreateProjectForm,
+    options?: { stages?: readonly ProjectStage[] },
+  ) => void
+  addProjectFromTemplate: (data: CreateProjectForm, templateId: string) => void
   updateProject: (projectSlug: string, data: CreateProjectForm) => void
   addProjectStage: (projectSlug: string, data: CreateStageForm) => void
   updateProjectStage: (
@@ -37,6 +44,8 @@ export type ProjectsContextValue = {
   ) => void
   removeProjectStage: (projectSlug: string, stageId: string) => void
   getProjectBySlug: (slug: string) => Project | undefined
+  setProjectArchived: (projectSlug: string, archived: boolean) => void
+  saveProjectAsTemplate: (projectSlug: string, templateName: string) => void
   /** Один активный таймер на весь интерфейс; время пишется в этап при смене/стопе */
   runningStageTimer: RunningStageTimer | null
   startStageTimer: (projectSlug: string, stageId: string) => void
@@ -64,8 +73,29 @@ export type ProjectsContextValue = {
   clearTimerSessionLog: () => void
   /** Заменить проекты / финансы / календарь (импорт JSON и т.п.) */
   replacePortfolioData: (payload: PortfolioBundle) => void
+  /** Слияние с текущими данными по slug/id (импорт JSON). */
+  mergePortfolioData: (payload: PortfolioBundle) => void
+  /** Копия проекта с новым slug и новыми id этапов; сброс учёта времени на этапах. */
+  duplicateProject: (projectSlug: string) => string | null
   /** Отправить текущее состояние портфеля в Supabase */
   syncPortfolioToRemote: () => Promise<void>
+
+  clients: WorkspaceClient[]
+  getClientById: (id: string) => WorkspaceClient | undefined
+  addClient: (data: Omit<WorkspaceClient, 'id'>) => WorkspaceClient
+  updateClient: (id: string, patch: Partial<Omit<WorkspaceClient, 'id'>>) => void
+  deleteClient: (id: string) => void
+
+  tasks: WorkspaceTask[]
+  addTask: (
+    partial: Omit<WorkspaceTask, 'id' | 'sortOrder'> & { sortOrder?: number },
+  ) => WorkspaceTask
+  updateTask: (id: string, patch: Partial<Omit<WorkspaceTask, 'id'>>) => void
+  toggleTaskDone: (id: string) => void
+  deleteTask: (id: string) => void
+
+  templates: ProjectTemplate[]
+  deleteTemplate: (id: string) => void
 }
 
 export const ProjectsContext = createContext<ProjectsContextValue | null>(null)

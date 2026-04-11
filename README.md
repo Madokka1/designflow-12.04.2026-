@@ -44,6 +44,7 @@ npm run dev
 2. `supabase/migrations/002_profiles_supabase_connection.sql`
 3. `supabase/migrations/003_profile_ui_and_timer_log.sql`
 4. `supabase/migrations/004_read_only_mode.sql`
+5. `supabase/migrations/005_workspace_extras.sql` (клиенты, задачи, шаблоны, архив проектов, ревизии заметок)
 
 Краткая инструкция по деплою статики и nginx — в [`deploy/README.md`](deploy/README.md).
 

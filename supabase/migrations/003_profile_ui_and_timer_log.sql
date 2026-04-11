@@ -1,5 +1,6 @@
 -- Доп. поля профиля (тема, флаг «запоминать пароль», email входа Supabase — без пароля).
 -- Журнал сессий таймера на пользователя.
+-- Повторный запуск безопасен: политики timer_session_log пересоздаются.
 
 alter table public.profiles
   add column if not exists theme text not null default 'system';
@@ -36,6 +37,10 @@ create index if not exists timer_session_log_user_ended_idx
   on public.timer_session_log (user_id, ended_at desc);
 
 alter table public.timer_session_log enable row level security;
+
+drop policy if exists "timer_session_log_select_own" on public.timer_session_log;
+drop policy if exists "timer_session_log_insert_own" on public.timer_session_log;
+drop policy if exists "timer_session_log_delete_own" on public.timer_session_log;
 
 create policy "timer_session_log_select_own"
   on public.timer_session_log for select

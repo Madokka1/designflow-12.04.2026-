@@ -1,4 +1,11 @@
-import { useCallback, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+} from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   buildPortfolioCsvExport,
@@ -7,9 +14,15 @@ import {
 import {
   buildPortfolioJsonBackup,
   parsePortfolioJsonBackup,
+  type ParsedPortfolioBackup,
 } from '../lib/portfolioJsonBackup'
+import { APP_CHANGELOG } from '../data/changelog'
 import { upsertNoteToSupabase } from '../lib/notesSupabase'
 import { buildTimerSessionsCsv } from '../lib/exportTimerSessionsCsv'
+import {
+  fetchProfileSettings,
+  profileRowToSettingsPatch,
+} from '../lib/profileSettingsSupabase'
 import { accentButtonStyle } from '../lib/pickContrastText'
 import {
   PORTFOLIO_SCHEMA_SQL,
@@ -20,6 +33,10 @@ import { useNotesContext } from '../hooks/useNotesContext'
 import { useProjects } from '../hooks/useProjects'
 import { useSettings } from '../hooks/useSettings'
 import { formInputUnderlineClass } from '../lib/formInputClasses'
+import {
+  createTelegramLinkToken,
+  unlinkTelegramFromProfile,
+} from '../lib/telegramLinkSupabase'
 import type { SettingsFontId, SettingsThemeId } from '../types/settings'
 
 const BORDER = 'border-card-border'
@@ -40,6 +57,21 @@ const THEME_OPTIONS: { id: SettingsThemeId; label: string }[] = [
 ]
 
 const inputClass = formInputUnderlineClass
+
+const defaultJsonImportSections = {
+  profile: true,
+  projects: true,
+  finance: true,
+  calendar: true,
+  notes: true,
+  clients: true,
+  tasks: true,
+  templates: true,
+} as const
+
+type JsonImportSections = {
+  [K in keyof typeof defaultJsonImportSections]: boolean
+}
 
 /** Стрелка выпадающего списка: тёмная в светлой теме, светлая в `html.dark`. */
 const selectClass = `${formInputUnderlineClass} cursor-pointer appearance-none bg-[length:1rem] bg-[right_0.25rem_center] bg-no-repeat pr-8 bg-[url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2712%27%20height%3D%2712%27%20fill%3D%27none%27%20viewBox%3D%270%200%2012%2012%27%3E%3Cpath%20stroke%3D%27%230a0a0a%27%20stroke-linecap%3D%27round%27%20stroke-width%3D%271%27%20d%3D%27m3%204.5%203%203%203-3%27%2F%3E%3C%2Fsvg%3E")] dark:bg-[url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2712%27%20height%3D%2712%27%20fill%3D%27none%27%20viewBox%3D%270%200%2012%2012%27%3E%3Cpath%20stroke%3D%27%23fafafa%27%20stroke-linecap%3D%27round%27%20stroke-width%3D%271%27%20d%3D%27m3%204.5%203%203%203-3%27%2F%3E%3C%2Fsvg%3E")]`
@@ -97,12 +129,16 @@ export function SettingsPage() {
     projects,
     financeTransactions,
     calendarCustomEvents,
+    clients,
+    tasks,
+    templates,
     timerSessionLog,
     clearTimerSessionLog,
     replacePortfolioData,
+    mergePortfolioData,
     syncPortfolioToRemote,
   } = useProjects()
-  const { notes, replaceAllNotes } = useNotesContext()
+  const { notes, replaceAllNotes, mergeNotesBySlug } = useNotesContext()
   const jsonImportRef = useRef<HTMLInputElement>(null)
   const [tab, setTab] = useState<SettingsTabId>('general')
   const [copyState, setCopyState] = useState<'idle' | 'ok' | 'err'>('idle')
@@ -112,6 +148,52 @@ export function SettingsPage() {
   const [pwdFeedback, setPwdFeedback] = useState<
     'idle' | 'ok' | 'mismatch' | 'empty'
   >('idle')
+  const [telegramUiHint, setTelegramUiHint] = useState<string | null>(null)
+  const [telegramLinkBusy, setTelegramLinkBusy] = useState(false)
+  /** Последний выданный код; можно вставить в бота: /link КОД */
+  const [telegramPairCode, setTelegramPairCode] = useState<string | null>(null)
+  const telegramLinkPollRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (telegramLinkPollRef.current != null) {
+        window.clearInterval(telegramLinkPollRef.current)
+        telegramLinkPollRef.current = null
+      }
+    }
+  }, [])
+
+  const refreshProfileFromSupabase = useCallback(async () => {
+    if (!client || !session?.user?.id) return
+    const row = await fetchProfileSettings(client, session.user.id)
+    if (row) updateSettings(profileRowToSettingsPatch(row))
+  }, [client, session?.user?.id, updateSettings])
+
+  const [jsonImportDraft, setJsonImportDraft] = useState<{
+    data: ParsedPortfolioBackup
+    warnings: string[]
+  } | null>(null)
+  const [jsonImportMode, setJsonImportMode] = useState<'replace' | 'merge'>(
+    'replace',
+  )
+  const [jsonImportSections, setJsonImportSections] =
+    useState<JsonImportSections>(() => ({ ...defaultJsonImportSections }))
+
+  const [pwaDeferred, setPwaDeferred] = useState<{
+    prompt: () => Promise<void>
+  } | null>(null)
+
+  useEffect(() => {
+    const onBip = (e: Event) => {
+      e.preventDefault()
+      const ev = e as Event & { prompt?: () => Promise<void> }
+      if (typeof ev.prompt === 'function') {
+        setPwaDeferred({ prompt: () => ev.prompt!() })
+      }
+    }
+    window.addEventListener('beforeinstallprompt', onBip)
+    return () => window.removeEventListener('beforeinstallprompt', onBip)
+  }, [])
 
   const handleExportCsv = useCallback(() => {
     const csv = buildPortfolioCsvExport({
@@ -162,6 +244,9 @@ export function SettingsPage() {
       financeTransactions,
       calendarCustomEvents,
       notes,
+      clients,
+      tasks,
+      templates,
       settingsProfile: {
         firstName: settings.firstName,
         lastName: settings.lastName,
@@ -195,9 +280,12 @@ export function SettingsPage() {
     settings.about,
     settings.fontFamily,
     settings.accentColor,
+    clients,
+    tasks,
+    templates,
   ])
 
-  const handleImportJson = useCallback(
+  const onJsonFileChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0]
       e.target.value = ''
@@ -210,58 +298,105 @@ export function SettingsPage() {
       reader.onload = () => {
         const text = String(reader.result ?? '')
         const parsed = parsePortfolioJsonBackup(text)
-        if (!parsed.ok) {
+        if (parsed.ok === false) {
           window.alert(parsed.error)
           return
         }
-        if (
-          !window.confirm(
-            'Заменить проекты, финансы, календарь, заметки и поля профиля из файла? Данные отправятся в Supabase.',
-          )
-        ) {
-          return
-        }
-        const { data } = parsed
-        const sp = data.settingsProfile
-        updateSettings({
-          firstName: sp.firstName,
-          lastName: sp.lastName,
-          email: sp.email,
-          telegram: sp.telegram,
-          website: sp.website,
-          jobTitle: sp.jobTitle,
-          about: sp.about,
-          fontFamily: sp.fontFamily as typeof settings.fontFamily,
-          accentColor: sp.accentColor,
+        setJsonImportDraft({
+          data: parsed.data,
+          warnings: parsed.warnings,
         })
-        replacePortfolioData({
-          projects: data.projects,
-          financeTransactions: data.financeTransactions,
-          calendarCustomEvents: data.calendarCustomEvents,
-        })
-        replaceAllNotes(data.notes)
-        const uid = session?.user?.id
-        void (async () => {
-          await syncPortfolioToRemote()
-          if (client && uid) {
-            for (const n of data.notes) {
-              await upsertNoteToSupabase(client, uid, n)
-            }
-          }
-        })()
+        setJsonImportMode('replace')
+        setJsonImportSections({ ...defaultJsonImportSections })
       }
       reader.readAsText(file, 'utf-8')
     },
-    [
-      client,
-      session?.user?.id,
-      settings,
-      updateSettings,
-      replacePortfolioData,
-      replaceAllNotes,
-      syncPortfolioToRemote,
-    ],
+    [settings.readOnlyMode],
   )
+
+  const commitJsonImport = useCallback(() => {
+    if (!jsonImportDraft || settings.readOnlyMode) return
+    const { data } = jsonImportDraft
+    const sec = jsonImportSections
+    const sp = data.settingsProfile
+
+    if (jsonImportMode === 'replace') {
+      replacePortfolioData({
+        projects: sec.projects ? data.projects : projects,
+        financeTransactions: sec.finance
+          ? data.financeTransactions
+          : financeTransactions,
+        calendarCustomEvents: sec.calendar
+          ? data.calendarCustomEvents
+          : calendarCustomEvents,
+        clients: sec.clients ? (data.clients ?? []) : clients,
+        tasks: sec.tasks ? (data.tasks ?? []) : tasks,
+        templates: sec.templates ? (data.templates ?? []) : templates,
+      })
+      if (sec.notes) replaceAllNotes(data.notes)
+    } else {
+      mergePortfolioData({
+        projects: sec.projects ? data.projects : [],
+        financeTransactions: sec.finance ? data.financeTransactions : [],
+        calendarCustomEvents: sec.calendar ? data.calendarCustomEvents : [],
+        clients: sec.clients ? (data.clients ?? []) : [],
+        tasks: sec.tasks ? (data.tasks ?? []) : [],
+        templates: sec.templates ? (data.templates ?? []) : [],
+      })
+      if (sec.notes) mergeNotesBySlug(data.notes)
+    }
+
+    if (sec.profile) {
+      updateSettings({
+        firstName: sp.firstName,
+        lastName: sp.lastName,
+        email: sp.email,
+        telegram: sp.telegram,
+        website: sp.website,
+        jobTitle: sp.jobTitle,
+        about: sp.about,
+        fontFamily: sp.fontFamily as SettingsFontId,
+        accentColor: sp.accentColor,
+      })
+    }
+
+    setJsonImportDraft(null)
+    setJsonImportSections({ ...defaultJsonImportSections })
+
+    const uid = session?.user?.id
+    void (async () => {
+      await syncPortfolioToRemote()
+      if (client && uid && sec.notes) {
+        for (const n of data.notes) {
+          await upsertNoteToSupabase(client, uid, n)
+        }
+      }
+    })()
+  }, [
+    jsonImportDraft,
+    jsonImportMode,
+    jsonImportSections,
+    settings.readOnlyMode,
+    projects,
+    financeTransactions,
+    calendarCustomEvents,
+    clients,
+    tasks,
+    templates,
+    replacePortfolioData,
+    mergePortfolioData,
+    replaceAllNotes,
+    mergeNotesBySlug,
+    updateSettings,
+    syncPortfolioToRemote,
+    client,
+    session?.user?.id,
+  ])
+
+  const cancelJsonImport = useCallback(() => {
+    setJsonImportDraft(null)
+    setJsonImportSections({ ...defaultJsonImportSections })
+  }, [])
 
   const copyPrompt = useCallback(async () => {
     try {
@@ -311,9 +446,6 @@ export function SettingsPage() {
     <main className="relative z-10 mx-auto w-full max-w-[1840px] px-4 pb-16 pt-8 sm:px-10 sm:pt-10">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[10px] font-light uppercase tracking-[-0.02em] text-ink/55">
-            Настройки
-          </p>
           <h1 className="mt-1 text-[clamp(2rem,5vw,3.5rem)] font-light leading-[0.9] tracking-[-0.09em]">
             {tab === 'security' ? 'Безопасность и Supabase' : 'Профиль и данные'}
           </h1>
@@ -547,7 +679,7 @@ export function SettingsPage() {
 
         <SettingsCard
           title="Резервная копия JSON"
-          subtitle="Полный снимок для восстановления: те же данные, что в CSV, в одном JSON. Импорт заменяет текущие проекты, финансы, календарь и заметки и синхронизирует их с Supabase (если не включён режим только чтения)."
+          subtitle="В файле нет паролей Supabase и ключа service_role. Полный снимок данных и полей профиля (имя, контакты, шрифт, акцент). Схема v2 включает клиентов, задачи и шаблоны. После выбора файла откроется предпросмотр: режим замены или слияния и выбор разделов."
         >
           <div className="flex flex-wrap gap-3">
             <button
@@ -564,7 +696,7 @@ export function SettingsPage() {
               accept="application/json,.json"
               className="sr-only"
               aria-hidden
-              onChange={handleImportJson}
+              onChange={onJsonFileChange}
             />
             <button
               type="button"
@@ -575,6 +707,420 @@ export function SettingsPage() {
               Импортировать из JSON…
             </button>
           </div>
+
+          {jsonImportDraft ? (
+            <div className="flex flex-col gap-4 border border-card-border bg-ink/[0.02] p-4 dark:bg-white/[0.03]">
+              <p className="text-sm font-light text-ink">
+                <span className="text-ink/55">Схема:</span> v
+                {jsonImportDraft.data.schemaVersion}
+                {jsonImportDraft.data.exportedAt ? (
+                  <>
+                    {' '}
+                    · <span className="text-ink/55">экспорт:</span>{' '}
+                    {jsonImportDraft.data.exportedAt}
+                  </>
+                ) : null}
+              </p>
+              <ul className="text-xs font-light text-ink/70">
+                <li>Проекты: {jsonImportDraft.data.projects.length}</li>
+                <li>Заметки: {jsonImportDraft.data.notes.length}</li>
+                <li>Транзакции: {jsonImportDraft.data.financeTransactions.length}</li>
+                <li>События календаря: {jsonImportDraft.data.calendarCustomEvents.length}</li>
+                <li>Клиенты: {jsonImportDraft.data.clients?.length ?? 0}</li>
+                <li>Задачи: {jsonImportDraft.data.tasks?.length ?? 0}</li>
+                <li>Шаблоны: {jsonImportDraft.data.templates?.length ?? 0}</li>
+              </ul>
+              {jsonImportDraft.warnings.length > 0 ? (
+                <div>
+                  <p className="text-[10px] font-light uppercase text-amber-800 dark:text-amber-200">
+                    Предупреждения при разборе
+                  </p>
+                  <ul className="mt-1 list-inside list-disc text-xs font-light text-ink/75">
+                    {jsonImportDraft.warnings.map((w) => (
+                      <li key={w}>{w}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              <div className="flex flex-wrap gap-4 text-sm font-light">
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="radio"
+                    name="json-import-mode"
+                    checked={jsonImportMode === 'replace'}
+                    onChange={() => setJsonImportMode('replace')}
+                    className="accent-ink"
+                  />
+                  Полная замена (по выбранным разделам)
+                </label>
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="radio"
+                    name="json-import-mode"
+                    checked={jsonImportMode === 'merge'}
+                    onChange={() => setJsonImportMode('merge')}
+                    className="accent-ink"
+                  />
+                  Слияние по slug/id
+                </label>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {(
+                  Object.keys(defaultJsonImportSections) as (keyof JsonImportSections)[]
+                ).map((key) => (
+                  <label key={key} className="flex cursor-pointer items-center gap-2 text-xs font-light">
+                    <input
+                      type="checkbox"
+                      className="accent-ink"
+                      checked={jsonImportSections[key]}
+                      onChange={(e) =>
+                        setJsonImportSections((s) => ({
+                          ...s,
+                          [key]: e.target.checked,
+                        }))
+                      }
+                    />
+                    {key === 'profile'
+                      ? 'Профиль'
+                      : key === 'projects'
+                        ? 'Проекты'
+                        : key === 'finance'
+                          ? 'Финансы'
+                          : key === 'calendar'
+                            ? 'Календарь'
+                            : key === 'notes'
+                              ? 'Заметки'
+                              : key === 'clients'
+                                ? 'Клиенты'
+                                : key === 'tasks'
+                                  ? 'Задачи'
+                                  : 'Шаблоны'}
+                  </label>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="h-9 rounded-full px-5 text-sm font-light"
+                  style={accentButtonStyle(settings.accentColor)}
+                  onClick={commitJsonImport}
+                >
+                  Применить импорт
+                </button>
+                <button
+                  type="button"
+                  className="h-9 rounded-full border border-card-border px-5 text-sm font-light"
+                  onClick={cancelJsonImport}
+                >
+                  Отмена
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </SettingsCard>
+
+        <SettingsCard
+          title="Уведомления, сессия и приложение"
+          subtitle="Напоминания о сроках — в браузере или в Telegram (отдельный воркер с BotFather и service_role). Автовыход обнуляет сессию Supabase на этом устройстве. Установка PWA — в поддерживаемых браузерах."
+        >
+          <div className="flex flex-col gap-4">
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                className="mt-1 h-3.5 w-3.5 accent-ink"
+                checked={settings.deadlineNotifyEnabled}
+                onChange={(e) =>
+                  updateSettings({ deadlineNotifyEnabled: e.target.checked })
+                }
+              />
+              <span className="text-sm font-light text-ink/70">
+                Напоминания о дедлайнах проектов, этапов и задач (раз в час проверка).
+              </span>
+            </label>
+            <Field label="За сколько дней заранее (0 — только в день срока)">
+              <input
+                type="number"
+                min={0}
+                max={14}
+                className={inputClass}
+                value={settings.deadlineNotifyDaysBefore}
+                onChange={(e) =>
+                  updateSettings({
+                    deadlineNotifyDaysBefore: Math.min(
+                      14,
+                      Math.max(0, Number(e.target.value) || 0),
+                    ),
+                  })
+                }
+              />
+            </Field>
+
+            <div className="border-t border-card-border pt-4">
+              <p className="text-[10px] font-light uppercase tracking-[-0.02em] text-ink/55">
+                Telegram
+              </p>
+              <p className="mt-2 text-sm font-light text-ink/70">
+                Это <span className="text-ink">один общий бот</span> для всех пользователей.
+                Если бот <span className="text-ink">не отвечает</span> на <code className="text-xs">/link</code> — до Telegram не подключён сервер: разверните{' '}
+                <span className="text-ink">Supabase Edge Function</span>{' '}
+                <code className="text-xs text-ink/85">telegram-webhook</code> (шаги в{' '}
+                <code className="text-xs text-ink/85">telegram-notify-bot/README.md</code>, раздел
+                «Вариант A») или держите запущенным <code className="text-xs">npm start</code> в{' '}
+                <code className="text-xs text-ink/85">telegram-notify-bot/</code>. Нужна миграция{' '}
+                <code className="text-xs text-ink/85">006_telegram_notifications.sql</code>.
+                Привязка: кнопка ниже или <code className="text-xs">/link</code> с кодом; ответ бота
+                «Бот привязан».
+              </p>
+              {import.meta.env.VITE_TELEGRAM_BOT_USERNAME ? null : (
+                <p className="mt-2 text-xs font-light text-amber-800 dark:text-amber-200/90">
+                  Без <code className="text-[11px]">VITE_TELEGRAM_BOT_USERNAME</code> в .env кнопка
+                  не откроет чат — скопируйте команду <code className="text-[11px]">/link</code> с
+                  кодом и отправьте боту вручную.
+                </p>
+              )}
+              {telegramUiHint ? (
+                <p className="mt-2 text-xs font-light text-ink/60">{telegramUiHint}</p>
+              ) : null}
+              {telegramPairCode ? (
+                <div className="mt-3 rounded-lg border border-card-border bg-ink/[0.03] px-3 py-2 dark:bg-white/[0.04]">
+                  <p className="text-[10px] font-light uppercase tracking-[-0.02em] text-ink/50">
+                    Команда для бота (если не открылась ссылка)
+                  </p>
+                  <code className="mt-1 block break-all text-xs text-ink/90">{`/link ${telegramPairCode}`}</code>
+                  <button
+                    type="button"
+                    className="mt-2 h-8 rounded-full border border-card-border px-3 text-xs font-light"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(`/link ${telegramPairCode}`)
+                      setTelegramUiHint('Скопировано в буфер — вставьте в чат с ботом.')
+                    }}
+                  >
+                    Копировать /link …
+                  </button>
+                </div>
+              ) : null}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span className="text-sm font-light text-ink/80">
+                  Статус:{' '}
+                  {settings.telegramBotLinked ? (
+                    <span className="text-ink">привязан</span>
+                  ) : (
+                    <span className="text-ink/55">не привязан</span>
+                  )}
+                </span>
+                <button
+                  type="button"
+                  className="h-9 rounded-full border border-card-border px-4 text-sm font-light disabled:opacity-45"
+                  disabled={
+                    !client ||
+                    !session?.user?.id ||
+                    settings.readOnlyMode ||
+                    telegramLinkBusy
+                  }
+                  onClick={async () => {
+                    setTelegramUiHint(null)
+                    if (!client || !session?.user?.id) return
+                    const bot = String(
+                      import.meta.env.VITE_TELEGRAM_BOT_USERNAME ?? '',
+                    ).replace(/^@/, '')
+                    setTelegramLinkBusy(true)
+                    try {
+                      const token = await createTelegramLinkToken(
+                        client,
+                        session.user.id,
+                      )
+                      if (!token) {
+                        setTelegramUiHint(
+                          'Не удалось создать код. Проверьте миграцию 006 и RLS.',
+                        )
+                        return
+                      }
+                      setTelegramPairCode(token)
+                      if (bot) {
+                        window.open(
+                          `https://t.me/${bot}?start=${encodeURIComponent(token)}`,
+                          '_blank',
+                          'noopener,noreferrer',
+                        )
+                        setTelegramUiHint(
+                          'В Telegram нажмите «Start». Когда бот ответит «Бот привязан», статус здесь обновится.',
+                        )
+                      } else {
+                        setTelegramUiHint(
+                          'Скопируйте команду /link выше и отправьте её боту в Telegram.',
+                        )
+                      }
+                      if (telegramLinkPollRef.current != null) {
+                        window.clearInterval(telegramLinkPollRef.current)
+                      }
+                      let n = 0
+                      telegramLinkPollRef.current = window.setInterval(() => {
+                        n += 1
+                        void (async () => {
+                          if (!client || !session?.user?.id) return
+                          const row = await fetchProfileSettings(
+                            client,
+                            session.user.id,
+                          )
+                          if (row) {
+                            const patch = profileRowToSettingsPatch(row)
+                            updateSettings(patch)
+                            if (patch.telegramBotLinked) {
+                              if (telegramLinkPollRef.current != null) {
+                                window.clearInterval(telegramLinkPollRef.current)
+                                telegramLinkPollRef.current = null
+                              }
+                              setTelegramPairCode(null)
+                              setTelegramUiHint(
+                                'В Telegram должно было прийти: «Бот привязан». Статус обновлён.',
+                              )
+                            }
+                          }
+                          if (
+                            n >= 20 &&
+                            telegramLinkPollRef.current != null
+                          ) {
+                            window.clearInterval(telegramLinkPollRef.current)
+                            telegramLinkPollRef.current = null
+                            setTelegramUiHint((prev) =>
+                              prev?.includes('обновлён')
+                                ? prev
+                                : 'Статус не обновился. Убедитесь, что сервер бота запущен, и отправьте /link с кодом или Start по ссылке. Нажмите «Обновить статус».',
+                            )
+                          }
+                        })()
+                      }, 2000)
+                    } finally {
+                      setTelegramLinkBusy(false)
+                    }
+                  }}
+                >
+                  Получить код и открыть бота
+                </button>
+                <button
+                  type="button"
+                  className="h-9 rounded-full border border-card-border px-4 text-sm font-light disabled:opacity-45"
+                  disabled={!client || !session?.user?.id}
+                  onClick={() => void refreshProfileFromSupabase()}
+                >
+                  Обновить статус
+                </button>
+                <button
+                  type="button"
+                  className="h-9 rounded-full border border-card-border px-4 text-sm font-light disabled:opacity-45"
+                  disabled={
+                    !client ||
+                    !session?.user?.id ||
+                    settings.readOnlyMode ||
+                    !settings.telegramBotLinked
+                  }
+                  onClick={async () => {
+                    if (!client || !session?.user?.id) return
+                    setTelegramUiHint(null)
+                    const err = await unlinkTelegramFromProfile(
+                      client,
+                      session.user.id,
+                    )
+                    if (err) {
+                      setTelegramUiHint(err.message)
+                      return
+                    }
+                    updateSettings({ telegramBotLinked: false })
+                    setTelegramPairCode(null)
+                    setTelegramUiHint(
+                      'Чат отвязан. Чтобы снова привязать — получите новый код кнопкой выше.',
+                    )
+                  }}
+                >
+                  Отвязать Telegram
+                </button>
+              </div>
+              <label className="mt-4 flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-1 h-3.5 w-3.5 accent-ink"
+                  checked={settings.telegramDeadlineNotifyEnabled}
+                  disabled={settings.readOnlyMode}
+                  onChange={(e) =>
+                    updateSettings({
+                      telegramDeadlineNotifyEnabled: e.target.checked,
+                    })
+                  }
+                />
+                <span className="text-sm font-light text-ink/70">
+                  Напоминания о дедлайнах в Telegram (раз в час проверяет воркер; нужен запущенный
+                  бот).
+                </span>
+              </label>
+              <Field label="За сколько дней заранее в Telegram (0 — только в день срока)">
+                <input
+                  type="number"
+                  min={0}
+                  max={14}
+                  className={inputClass}
+                  disabled={settings.readOnlyMode}
+                  value={settings.telegramDeadlineNotifyDaysBefore}
+                  onChange={(e) =>
+                    updateSettings({
+                      telegramDeadlineNotifyDaysBefore: Math.min(
+                        14,
+                        Math.max(0, Number(e.target.value) || 0),
+                      ),
+                    })
+                  }
+                />
+              </Field>
+            </div>
+
+            <Field label="Автовыход при простое (минуты, 0 — не выходить)">
+              <input
+                type="number"
+                min={0}
+                max={1440}
+                className={inputClass}
+                value={settings.sessionIdleMinutes}
+                onChange={(e) =>
+                  updateSettings({
+                    sessionIdleMinutes: Math.min(
+                      1440,
+                      Math.max(0, Number(e.target.value) || 0),
+                    ),
+                  })
+                }
+              />
+            </Field>
+            {pwaDeferred ? (
+              <button
+                type="button"
+                className="h-9 w-fit rounded-full border border-card-border px-5 text-sm font-light"
+                onClick={() => {
+                  void pwaDeferred.prompt().finally(() => setPwaDeferred(null))
+                }}
+              >
+                Установить приложение (PWA)
+              </button>
+            ) : (
+              <p className="text-xs font-light text-ink/50">
+                Подсказка: откройте сайт в Chrome/Edge; кнопка установки появится, когда
+                браузер предложит PWA.
+              </p>
+            )}
+          </div>
+        </SettingsCard>
+
+        <SettingsCard title="Что нового" subtitle="Краткий журнал возможностей.">
+          <ul className="flex flex-col gap-4">
+            {APP_CHANGELOG.map((block) => (
+              <li key={block.date}>
+                <p className="text-[10px] font-light uppercase text-ink/55">{block.date}</p>
+                <ul className="mt-2 list-inside list-disc text-sm font-light text-ink/80">
+                  {block.items.map((it) => (
+                    <li key={it}>{it}</li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
         </SettingsCard>
         </div>
 

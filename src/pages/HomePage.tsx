@@ -404,10 +404,10 @@ export function HomePage() {
   return (
     <main className="relative z-10 flex h-[calc(100dvh-5.5rem)] min-h-0 w-full max-w-none flex-col overflow-hidden px-4 pb-4 pt-5 sm:px-10 sm:pt-6">
       <header className="shrink-0">
-        <h1 className="text-[clamp(1.75rem,4vw,2.75rem)] font-light leading-[0.95] tracking-[-0.09em]">
+      <h1 className="max-w-[357px] text-[clamp(2.5rem,6vw,4rem)] font-light leading-[0.9] tracking-[-0.09em]">
           Обзор
         </h1>
-        <nav className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-light tracking-[-0.02em]">
+        <nav className="mt-10 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-light tracking-[-0.02em]">
           {NAV.map(([label, to], i) => (
             <span key={to} className="flex items-center gap-x-4">
               {i > 0 ? (
