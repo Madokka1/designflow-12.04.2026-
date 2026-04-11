@@ -1,0 +1,221 @@
+import { useEffect, useId, useRef } from 'react'
+import { createPortal } from 'react-dom'
+import { useFocusTrap } from '../hooks/useFocusTrap'
+import { modalEdgeBorderClass } from '../lib/formInputClasses'
+import { formatDurationRu } from '../lib/formatDurationRu'
+import { stagePlannedRows } from '../lib/stagePlannedRows'
+import type { Project, ProjectStage } from '../types/project'
+
+const CARD_FALLBACK_TAGS = ['Ожидает оплаты', 'В работе', 'Разработка'] as const
+
+type Props = {
+  project: Project
+  stage: ProjectStage
+  /** Суммарное фактическое время по проекту (все этапы + активный таймер) */
+  projectTrackedSeconds: number
+  /** Сеанс таймера на этапе (идёт или на паузе) — для подписи кнопки */
+  timerSessionActive: boolean
+  onToggleTimer: () => void
+  onToggleChecklistItem: (itemId: string) => void
+  onClose: () => void
+  onDelete: () => void
+  onEdit: () => void
+}
+
+export function StageDetailModal({
+  project,
+  stage,
+  projectTrackedSeconds,
+  timerSessionActive,
+  onToggleTimer,
+  onToggleChecklistItem,
+  onClose,
+  onDelete,
+  onEdit,
+}: Props) {
+  const titleId = useId()
+  const panelRef = useRef<HTMLDivElement>(null)
+  const tags = project.tags ?? CARD_FALLBACK_TAGS
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [])
+
+  useFocusTrap(true, panelRef)
+
+  const description =
+    stage.description ??
+    'Дополнительное описание этапа можно добавить при создании или редактировании.'
+
+  const headerTags = [
+    stage.status,
+    `дедлайн: ${stage.deadline}`,
+    ...(stage.modalTags ?? []),
+  ]
+
+  const node = (
+    <div className="fixed inset-0 z-[60] flex justify-end">
+      <button
+        type="button"
+        className="ui-modal-backdrop absolute inset-0 bg-surface/40 backdrop-blur-[5px]"
+        aria-label="Закрыть"
+        onClick={onClose}
+      />
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className={`ui-modal-panel-right relative flex h-full w-full max-w-[525px] flex-col border-l ${modalEdgeBorderClass} bg-surface shadow-none`}
+      >
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-36 pt-10 sm:px-10 sm:pt-16">
+          <span id={titleId} className="sr-only">
+            {stage.name}
+          </span>
+
+          <div className="flex max-w-[445px] flex-col justify-between gap-2.5 border border-card-border p-5">
+            <div className="flex flex-col gap-3">
+              <h2 className="text-[32px] font-light leading-[0.9] tracking-[-0.09em]">
+                {project.title}
+              </h2>
+              <p className="text-base font-light leading-[0.9] tracking-[-0.09em]">
+                {project.client}
+              </p>
+            </div>
+            <div className="mt-4 flex flex-col gap-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-5">
+                  {tags.map((label, i) => (
+                    <span
+                      key={`${label}-${i}`}
+                      className="text-[10px] font-light uppercase leading-none tracking-[-0.02em]"
+                    >
+                      {label}
+                    </span>
+                  ))}
+                </div>
+                <span className="shrink-0 text-base font-light leading-[0.9] tracking-[-0.09em]">
+                  {project.amount}
+                </span>
+              </div>
+              <div className="h-0.5 w-full overflow-hidden rounded-full bg-progress-track">
+                <div
+                  className="h-full rounded-full bg-ink transition-[width] duration-500 ease-out"
+                  style={{ width: `${project.progress}%` }}
+                />
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-[10px] font-light uppercase leading-none tracking-[-0.02em]">
+                <span>
+                  дедлайн: {project.deadline}
+                  <span className="text-ink/65">
+                    {' '}
+                    · фактическое время:{' '}
+                    {formatDurationRu(projectTrackedSeconds)}
+                  </span>
+                </span>
+                <span>{project.progress}%</span>
+              </div>
+            </div>
+          </div>
+
+          <p className="mt-10 max-w-[445px] text-base font-light leading-[1.4] tracking-[-0.09em] text-ink">
+            {description}
+          </p>
+
+          <div className="mt-10 flex max-w-[445px] flex-col gap-6 border border-card-border p-5">
+            <div className="flex flex-col gap-5">
+              <div className="flex flex-wrap gap-x-6 gap-y-2">
+                {headerTags.map((label, i) => (
+                  <span
+                    key={`${label}-${i}`}
+                    className="text-[10px] font-light uppercase leading-none tracking-[-0.02em]"
+                  >
+                    {label}
+                  </span>
+                ))}
+              </div>
+              <h3 className="text-[32px] font-light leading-[0.9] tracking-[-0.09em]">
+                {stage.name}
+              </h3>
+            </div>
+            <div className={`flex flex-col gap-3 border-t pt-5 ${modalEdgeBorderClass}`}>
+              {stagePlannedRows(stage.planned).map((line, i) => (
+                <p
+                  key={i}
+                  className="text-[10px] font-light uppercase leading-relaxed tracking-[-0.02em] text-ink/90"
+                >
+                  {line}
+                </p>
+              ))}
+            </div>
+            {stage.checklist && stage.checklist.length > 0 ? (
+              <div className={`flex flex-col gap-3 border-t pt-5 ${modalEdgeBorderClass}`}>
+                {stage.checklist.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => onToggleChecklistItem(item.id)}
+                    className={`flex w-full cursor-pointer items-start gap-2.5 text-left outline-none ring-ink transition-opacity hover:opacity-90 focus-visible:ring-2 ${item.done ? 'opacity-60' : ''}`}
+                  >
+                    <span
+                      className={`mt-1.5 h-2 w-2 shrink-0 border border-ink ${item.done ? 'bg-ink' : ''}`}
+                      aria-hidden
+                    />
+                    <span className="text-base font-light leading-[1.4] tracking-[-0.09em]">
+                      {item.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="mt-10 flex max-w-[445px] flex-col gap-4">
+            <button
+              type="button"
+              onClick={onToggleTimer}
+              className="w-fit rounded-full bg-fill-contrast-bg px-4 py-2 text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-fill-contrast-fg transition-opacity hover:opacity-90"
+            >
+              {timerSessionActive ? 'Остановить таймер' : 'Запустить таймер'}
+            </button>
+          </div>
+        </div>
+
+        <div className="absolute bottom-0 left-0 right-0 flex flex-wrap items-center justify-between gap-4 border-t border-transparent bg-surface px-6 py-6 sm:px-10 sm:py-8">
+          <button
+            type="button"
+            className="h-8 rounded-full bg-fill-contrast-bg px-5 text-sm font-light tracking-[-0.05em] text-fill-contrast-fg transition-opacity hover:opacity-90"
+            onClick={onEdit}
+          >
+            Редактировать этап
+          </button>
+          <button
+            type="button"
+            className="h-8 rounded-full bg-fill-contrast-bg px-5 text-sm font-light tracking-[-0.05em] text-fill-contrast-fg transition-opacity hover:opacity-90"
+            onClick={() => {
+              onDelete()
+              onClose()
+            }}
+            aria-label="Удалить этап"
+          >
+            Удалить
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+
+  return createPortal(node, document.body)
+}

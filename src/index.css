@@ -1,0 +1,133 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --color-accent: #0a0a0a;
+  --color-ink: #0a0a0a;
+  --color-surface: #ffffff;
+  --color-card-border: rgba(10, 10, 10, 0.32);
+  --color-progress-track: rgba(10, 10, 10, 0.1);
+  --color-glass-fill: rgba(0, 0, 0, 0.05);
+  --color-glass-stroke: rgba(255, 255, 255, 0.05);
+  /** Плашки и кнопки «заливка + текст»: в светлой теме тёмный фон, в тёмной — светлый фон и тёмный текст (не путать с text-ink). */
+  --color-fill-contrast-bg: #0a0a0a;
+  --color-fill-contrast-fg: #fafafa;
+  /** Нижняя граница полей и плейсхолдеры (светлая тема). */
+  --color-form-border: rgba(10, 10, 10, 0.18);
+  --color-form-placeholder: rgba(10, 10, 10, 0.5);
+  /** Разделители модалок (левая граница панели и т.п.). */
+  --color-modal-edge: rgba(10, 10, 10, 0.12);
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Длительность анимаций; при reduced-motion почти мгновенно */
+:root {
+  --ui-motion-duration: 320ms;
+  --ui-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ui-motion-duration: 1ms;
+  }
+}
+
+@keyframes ui-modal-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ui-modal-panel-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes ui-modal-panel-center {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes ui-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ui-drawer-bottom-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.ui-modal-backdrop {
+  animation: ui-modal-backdrop-in var(--ui-motion-duration) var(--ui-motion-ease) both;
+}
+
+.ui-modal-panel-right {
+  animation: ui-modal-panel-from-right var(--ui-motion-duration) var(--ui-motion-ease) both;
+}
+
+.ui-modal-panel-center {
+  animation: ui-modal-panel-center var(--ui-motion-duration) var(--ui-motion-ease) both;
+}
+
+.ui-page-enter {
+  animation: ui-page-in var(--ui-motion-duration) var(--ui-motion-ease) both;
+}
+
+.ui-drawer-bottom-enter {
+  animation: ui-drawer-bottom-in var(--ui-motion-duration) var(--ui-motion-ease) both;
+}
+
+/* Тёмная тема: те же токены, что в @theme */
+html.dark {
+  color-scheme: dark;
+  --color-ink: #e8e8e8;
+  --color-surface: #0a0a0a;
+  --color-card-border: rgba(255, 255, 255, 0.14);
+  --color-progress-track: rgba(232, 232, 232, 0.12);
+  --color-glass-fill: rgba(255, 255, 255, 0.06);
+  --color-glass-stroke: rgba(255, 255, 255, 0.08);
+  --color-fill-contrast-bg: #e8e8e8;
+  --color-fill-contrast-fg: #0a0a0a;
+  --color-form-border: rgba(255, 255, 255, 0.28);
+  --color-form-placeholder: rgba(232, 232, 232, 0.45);
+  --color-modal-edge: rgba(255, 255, 255, 0.14);
+}
