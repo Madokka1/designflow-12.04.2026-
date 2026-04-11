@@ -282,9 +282,14 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       const p = projectsRef.current.find((x) => x.slug === slug)
       if (!p) return
       setPortfolioSync({ kind: 'saving' })
-      void upsertProjectToSupabase(client, userId, p).then((e) =>
-        reportSaveError(e),
-      )
+      void upsertProjectToSupabase(client, userId, p).then((res) => {
+        if (res.remappedProject) {
+          setProjects((prev) =>
+            prev.map((x) => (x.slug === slug ? res.remappedProject! : x)),
+          )
+        }
+        reportSaveError(res.error)
+      })
     },
     [client, userId, readOnly, reportSaveError, setPortfolioSync],
   )
@@ -329,8 +334,15 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     setPortfolioSync({ kind: 'saving' })
     try {
       for (const p of projectsRef.current) {
-        const e = await upsertProjectToSupabase(client, userId, p)
-        if (e) throw e
+        const res = await upsertProjectToSupabase(client, userId, p)
+        if (res.error) throw res.error
+        if (res.remappedProject) {
+          setProjects((prev) =>
+            prev.map((x) =>
+              x.slug === res.remappedProject!.slug ? res.remappedProject! : x,
+            ),
+          )
+        }
       }
       for (const t of financeRef.current) {
         const e = await upsertFinanceTransactionRemote(client, userId, t)
@@ -709,9 +721,16 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         }
         if (client && userId && !readOnly) {
           setPortfolioSync({ kind: 'saving' })
-          void upsertProjectToSupabase(client, userId, newP).then((e) => {
-            reportSaveError(e)
-            if (!e) {
+          void upsertProjectToSupabase(client, userId, newP).then((res) => {
+            if (res.remappedProject) {
+              setProjects((prev) =>
+                prev.map((x) =>
+                  x.slug === newP.slug ? res.remappedProject! : x,
+                ),
+              )
+            }
+            reportSaveError(res.error)
+            if (!res.error) {
               void invokeTelegramCreateNotify(
                 client,
                 `📁 Новый проект: «${newP.title}»`,
@@ -761,9 +780,16 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       setProjects((list) => [newP, ...list])
       if (client && userId && !readOnly) {
         setPortfolioSync({ kind: 'saving' })
-        void upsertProjectToSupabase(client, userId, newP).then((e) =>
-          reportSaveError(e),
-        )
+        void upsertProjectToSupabase(client, userId, newP).then((res) => {
+          if (res.remappedProject) {
+            setProjects((prev) =>
+              prev.map((x) =>
+                x.slug === newP.slug ? res.remappedProject! : x,
+              ),
+            )
+          }
+          reportSaveError(res.error)
+        })
       }
       return slug
     },

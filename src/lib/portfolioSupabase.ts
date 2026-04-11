@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { isUuid, randomUuid } from './isUuid'
 import type { CalendarCustomEvent } from '../types/calendarCustomEvent'
 import type { FinanceTransaction } from '../types/financeTransaction'
 import type { Project, ProjectStage } from '../types/project'
@@ -293,6 +294,38 @@ export async function fetchPortfolioBundle(
   }
 }
 
+/**
+ * Этапы из старых бэкапов/шаблонов могли иметь id вроде "s1"; в БД только uuid.
+ */
+function normalizeProjectStagesForSupabase(project: Project): {
+  project: Project
+  changed: boolean
+} {
+  let changed = false
+  const stages = (project.stages ?? []).map((stage) => {
+    let id = stage.id
+    if (!isUuid(id)) {
+      id = randomUuid()
+      changed = true
+    }
+    let checklist = stage.checklist
+    if (checklist?.length) {
+      let clChanged = false
+      const next = checklist.map((c) => {
+        if (isUuid(c.id)) return c
+        clChanged = true
+        return { ...c, id: randomUuid() }
+      })
+      if (clChanged) {
+        checklist = next
+        changed = true
+      }
+    }
+    return { ...stage, id, checklist }
+  })
+  return { project: { ...project, stages }, changed }
+}
+
 function stageToRow(s: ProjectStage, projectId: string, sortOrder: number): Record<string, unknown> {
   return {
     id: s.id,
@@ -312,56 +345,66 @@ function stageToRow(s: ProjectStage, projectId: string, sortOrder: number): Reco
   }
 }
 
+export type UpsertProjectToSupabaseResult = {
+  error: Error | null
+  /** Если id этапов были исправлены под uuid — подставьте проект в состояние UI. */
+  remappedProject?: Project
+}
+
 export async function upsertProjectToSupabase(
   client: SupabaseClient,
   userId: string,
   project: Project,
-): Promise<Error | null> {
-  const tags = project.tags ?? []
+): Promise<UpsertProjectToSupabaseResult> {
+  const { project: toSave, changed } = normalizeProjectStagesForSupabase(project)
+  const tags = toSave.tags ?? []
   const row: Record<string, unknown> = {
-    id: project.id,
+    id: toSave.id,
     user_id: userId,
-    slug: project.slug,
-    title: project.title,
-    client: project.client,
-    amount: project.amount,
-    deadline: project.deadline,
-    progress: project.progress,
+    slug: toSave.slug,
+    title: toSave.title,
+    client: toSave.client,
+    amount: toSave.amount,
+    deadline: toSave.deadline,
+    progress: toSave.progress,
     tags,
-    comment: project.comment ?? null,
-    archived: project.archived ?? false,
-    client_id: project.clientId ?? null,
+    comment: toSave.comment ?? null,
+    archived: toSave.archived ?? false,
+    client_id: toSave.clientId ?? null,
   }
   const { error: e1 } = await client.from('projects').upsert(row, {
     onConflict: 'id',
   })
-  if (e1) return e1
+  if (e1) return { error: e1 }
 
-  const stages = project.stages ?? []
+  const stages = toSave.stages ?? []
   const { data: existing, error: e2 } = await client
     .from('project_stages')
     .select('id')
-    .eq('project_id', project.id)
+    .eq('project_id', toSave.id)
 
-  if (e2) return e2
+  if (e2) return { error: e2 }
 
   const existingIds = new Set((existing ?? []).map((x: { id: string }) => x.id))
   const currentIds = new Set(stages.map((s) => s.id))
   const toDelete = [...existingIds].filter((id) => !currentIds.has(id))
   if (toDelete.length > 0) {
     const { error: e3 } = await client.from('project_stages').delete().in('id', toDelete)
-    if (e3) return e3
+    if (e3) return { error: e3 }
   }
 
   for (let i = 0; i < stages.length; i++) {
-    const rowSt = stageToRow(stages[i], project.id, i)
+    const rowSt = stageToRow(stages[i], toSave.id, i)
     const { error: e4 } = await client.from('project_stages').upsert(rowSt, {
       onConflict: 'id',
     })
-    if (e4) return e4
+    if (e4) return { error: e4 }
   }
 
-  return null
+  return {
+    error: null,
+    remappedProject: changed ? toSave : undefined,
+  }
 }
 
 export async function upsertFinanceTransactionRemote(

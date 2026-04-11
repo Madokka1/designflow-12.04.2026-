@@ -1,9 +1,8 @@
 import type { ProjectStage } from '../types/project'
+import { randomUuid } from './isUuid'
 
 function newId(): string {
-  return typeof crypto !== 'undefined' && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `st-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+  return randomUuid()
 }
 
 /** Копия этапов с новыми id (для шаблонов и дублирования). */
