@@ -81,7 +81,7 @@ function formToProject(
     deadline,
     progress: 0,
     tags,
-    stages: [...DEFAULT_PROJECT_STAGES],
+    stages: cloneStagesWithNewIds(DEFAULT_PROJECT_STAGES),
     comment: data.comment.trim() || undefined,
     archived: false,
     clientId: cid ? cid : null,
