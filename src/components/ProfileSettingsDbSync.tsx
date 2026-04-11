@@ -28,6 +28,7 @@ function settingsDbSnapshot(s: AppSettings): string {
     readOnlyMode: s.readOnlyMode,
     telegramDeadlineNotifyEnabled: s.telegramDeadlineNotifyEnabled,
     telegramDeadlineNotifyDaysBefore: s.telegramDeadlineNotifyDaysBefore,
+    telegramNotifyCreatesEnabled: s.telegramNotifyCreatesEnabled,
   })
 }
 

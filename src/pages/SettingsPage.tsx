@@ -1070,6 +1070,24 @@ export function SettingsPage() {
                   }
                 />
               </Field>
+              <label className="mt-4 flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-1 h-3.5 w-3.5 accent-ink"
+                  checked={settings.telegramNotifyCreatesEnabled}
+                  disabled={settings.readOnlyMode}
+                  onChange={(e) =>
+                    updateSettings({
+                      telegramNotifyCreatesEnabled: e.target.checked,
+                    })
+                  }
+                />
+                <span className="text-sm font-light text-ink/70">
+                  Уведомлять в Telegram о новых проектах, этапах, клиентах и задачах (нужны
+                  привязанный чат и Edge Function{' '}
+                  <code className="text-xs text-ink/85">telegram-send</code>).
+                </span>
+              </label>
             </div>
 
             <Field label="Автовыход при простое (минуты, 0 — не выходить)">

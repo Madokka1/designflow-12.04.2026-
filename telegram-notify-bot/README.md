@@ -53,6 +53,12 @@
    ```
    В ответе должны быть `url` на `.../telegram-webhook` и `has_custom_certificate: false`.
 
+8. **Уведомления о создании** (проекты, этапы, клиенты, задачи): выполните миграцию **`007_telegram_notify_creates.sql`**, затем задеплойте функцию:
+   ```bash
+   supabase functions deploy telegram-send
+   ```
+   Нужны те же секреты, что для webhook (`TELEGRAM_BOT_TOKEN`, `SUPABASE_SERVICE_ROLE_KEY` и т.д.); `SUPABASE_URL` и `SUPABASE_ANON_KEY` подставляются при деплое. В приложении в Настройках включите «Уведомлять в Telegram о новых…».
+
 После этого отправьте боту `/link` с кодом из приложения — должен прийти ответ **«Бот привязан»**.
 
 **Важно:** если параллельно запущен локальный `npm start` (polling), отключите его и оставьте только webhook (или наоборот — снимите webhook командой `deleteWebhook`, если хотите только polling).

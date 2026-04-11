@@ -4,10 +4,11 @@ import profileUiTimerSql from '../../supabase/migrations/003_profile_ui_and_time
 import readOnlyModeSql from '../../supabase/migrations/004_read_only_mode.sql?raw'
 import workspaceExtrasSql from '../../supabase/migrations/005_workspace_extras.sql?raw'
 import telegramNotificationsSql from '../../supabase/migrations/006_telegram_notifications.sql?raw'
+import telegramNotifyCreatesSql from '../../supabase/migrations/007_telegram_notify_creates.sql?raw'
 
-/** SQL миграций подряд (001–006) для копирования в Supabase SQL Editor. */
+/** SQL миграций подряд (001–007) для копирования в Supabase SQL Editor. */
 export const PORTFOLIO_SCHEMA_SQL: string =
-  `${portfolioSchemaSql.trim()}\n\n${profilesConnectionSql.trim()}\n\n${profileUiTimerSql.trim()}\n\n${readOnlyModeSql.trim()}\n\n${workspaceExtrasSql.trim()}\n\n${telegramNotificationsSql.trim()}\n`
+  `${portfolioSchemaSql.trim()}\n\n${profilesConnectionSql.trim()}\n\n${profileUiTimerSql.trim()}\n\n${readOnlyModeSql.trim()}\n\n${workspaceExtrasSql.trim()}\n\n${telegramNotificationsSql.trim()}\n\n${telegramNotifyCreatesSql.trim()}\n`
 
 export const SUPABASE_SQL_INSTRUCTION = [
   'Откройте Supabase → SQL Editor, вставьте скрипт и выполните (Run).',

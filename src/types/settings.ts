@@ -37,6 +37,8 @@ export type AppSettings = {
   telegramDeadlineNotifyEnabled: boolean
   /** За сколько дней до срока слать в Telegram (0–14). */
   telegramDeadlineNotifyDaysBefore: number
+  /** Уведомления в Telegram о новых проектах, этапах, клиентах, задачах. */
+  telegramNotifyCreatesEnabled: boolean
   /** Автовыход при простое, минуты; 0 — выключено. */
   sessionIdleMinutes: number
 }
@@ -63,5 +65,6 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   telegramBotLinked: false,
   telegramDeadlineNotifyEnabled: false,
   telegramDeadlineNotifyDaysBefore: 3,
+  telegramNotifyCreatesEnabled: true,
   sessionIdleMinutes: 0,
 }

@@ -15,6 +15,7 @@ import {
 } from '../lib/durationTokens'
 import { formatDurationRu } from '../lib/formatDurationRu'
 import { formatRubDots, parseAmountRub } from '../lib/parseAmountRub'
+import { invokeTelegramCreateNotify } from '../lib/invokeTelegramCreateNotify'
 import { uniqueSlug } from '../lib/slug'
 import { useAuth } from '../hooks/useAuth'
 import { useSettings } from '../hooks/useSettings'
@@ -708,9 +709,15 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         }
         if (client && userId && !readOnly) {
           setPortfolioSync({ kind: 'saving' })
-          void upsertProjectToSupabase(client, userId, newP).then((e) =>
-            reportSaveError(e),
-          )
+          void upsertProjectToSupabase(client, userId, newP).then((e) => {
+            reportSaveError(e)
+            if (!e) {
+              void invokeTelegramCreateNotify(
+                client,
+                `📁 Новый проект: «${newP.title}»`,
+              )
+            }
+          })
         }
         return [newP, ...prev]
       })
@@ -822,9 +829,15 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       )
       if (client && userId && !readOnly) {
         setPortfolioSync({ kind: 'saving' })
-        void upsertClientRemote(client, userId, row).then((e) =>
-          reportSaveError(e),
-        )
+        void upsertClientRemote(client, userId, row).then((e) => {
+          reportSaveError(e)
+          if (!e) {
+            void invokeTelegramCreateNotify(
+              client,
+              `👤 Новый клиент: «${row.name}»`,
+            )
+          }
+        })
       }
       return row
     },
@@ -895,7 +908,15 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       setTasks((prev) => [...prev, row])
       if (client && userId && !readOnly) {
         setPortfolioSync({ kind: 'saving' })
-        void upsertTaskRemote(client, userId, row).then((e) => reportSaveError(e))
+        void upsertTaskRemote(client, userId, row).then((e) => {
+          reportSaveError(e)
+          if (!e) {
+            void invokeTelegramCreateNotify(
+              client,
+              `✓ Новая задача: «${row.title}»`,
+            )
+          }
+        })
       }
       return row
     },
@@ -969,6 +990,9 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
 
   const addProjectStage = useCallback(
     (projectSlug: string, data: CreateStageForm) => {
+      const pBefore = projectsRef.current.find((x) => x.slug === projectSlug)
+      const projTitle = pBefore?.title ?? projectSlug
+      const stageName = data.name.trim() || 'Этап'
       setProjects((prev) =>
         prev.map((p) => {
           if (p.slug !== projectSlug) return p
@@ -990,8 +1014,14 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         }),
       )
       schedulePersistProject(projectSlug)
+      if (client && userId && !readOnly) {
+        void invokeTelegramCreateNotify(
+          client,
+          `📌 Новый этап: «${stageName}» · проект «${projTitle}»`,
+        )
+      }
     },
-    [schedulePersistProject],
+    [client, userId, readOnly, schedulePersistProject],
   )
 
   const updateProjectStage = useCallback(

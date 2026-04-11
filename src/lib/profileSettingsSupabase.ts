@@ -40,10 +40,11 @@ export type ProfileSettingsRow = {
   telegram_chat_id: number | string | null
   telegram_deadline_notify_enabled: boolean | null
   telegram_deadline_notify_days_before: number | null
+  telegram_notify_creates_enabled: boolean | null
 }
 
 const PROFILE_SETTINGS_SELECT =
-  'first_name,last_name,email,telegram,website,job_title,about,font_family,accent_color,theme,remember_auth_password,supabase_project_url,supabase_anon_key,supabase_auth_email,read_only_mode,telegram_chat_id,telegram_deadline_notify_enabled,telegram_deadline_notify_days_before'
+  'first_name,last_name,email,telegram,website,job_title,about,font_family,accent_color,theme,remember_auth_password,supabase_project_url,supabase_anon_key,supabase_auth_email,read_only_mode,telegram_chat_id,telegram_deadline_notify_enabled,telegram_deadline_notify_days_before,telegram_notify_creates_enabled'
 
 export function profileRowToSettingsPatch(row: ProfileSettingsRow): Partial<AppSettings> {
   return {
@@ -74,6 +75,8 @@ export function profileRowToSettingsPatch(row: ProfileSettingsRow): Partial<AppS
           : 3,
       ),
     ),
+    telegramNotifyCreatesEnabled:
+      row.telegram_notify_creates_enabled !== false,
   }
 }
 
@@ -100,6 +103,7 @@ export function settingsToProfileUpsertRow(
     read_only_mode: s.readOnlyMode,
     telegram_deadline_notify_enabled: s.telegramDeadlineNotifyEnabled,
     telegram_deadline_notify_days_before: s.telegramDeadlineNotifyDaysBefore,
+    telegram_notify_creates_enabled: s.telegramNotifyCreatesEnabled,
   }
 }
 
