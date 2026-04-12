@@ -41,4 +41,6 @@ export type Project = {
   archived?: boolean
   /** Справочник clients (опционально) */
   clientId?: string | null
+  /** Почасовая ставка сотрудника (руб/ч), для расчёта профита */
+  employeeHourlyRateRub?: number
 }

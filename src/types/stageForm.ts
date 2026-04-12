@@ -21,6 +21,8 @@ export type CreateStageForm = {
   name: string
   /** Свободный текст, напр. «40ч 30мин» */
   plannedTime: string
+  /** Фактическое время: те же токены, что план (ч м с через пробел), пишется в timeSpentSeconds */
+  actualTime: string
   cost: string
   comment: string
   deadline: string
@@ -33,6 +35,7 @@ export function defaultStageForm(): CreateStageForm {
   return {
     name: '',
     plannedTime: '',
+    actualTime: '',
     cost: '',
     comment: '',
     deadline: '',

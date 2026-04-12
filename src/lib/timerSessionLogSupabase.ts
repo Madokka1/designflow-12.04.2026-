@@ -85,3 +85,16 @@ export async function clearTimerSessionLogRemote(
     .eq('user_id', userId)
   return !error
 }
+
+export async function deleteTimerLogForProjectSlugRemote(
+  client: SupabaseClient,
+  userId: string,
+  projectSlug: string,
+): Promise<Error | null> {
+  const { error } = await client
+    .from('timer_session_log')
+    .delete()
+    .eq('user_id', userId)
+    .eq('project_slug', projectSlug)
+  return error
+}

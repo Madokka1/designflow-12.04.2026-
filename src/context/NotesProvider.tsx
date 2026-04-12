@@ -276,6 +276,55 @@ export function NotesProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const detachProjectFromNotes = useCallback(
+    (projectSlug: string) => {
+      setNotes((prev) => {
+        const next = prev.map((n) => {
+          const slugs = n.attachedProjectSlugs ?? []
+          if (!slugs.includes(projectSlug)) return n
+          return {
+            ...n,
+            attachedProjectSlugs: slugs.filter((s) => s !== projectSlug),
+          }
+        })
+        const changedSlugs = new Set<string>()
+        for (let i = 0; i < prev.length; i++) {
+          if (prev[i] !== next[i]) changedSlugs.add(prev[i].slug)
+        }
+        if (changedSlugs.size && client && userId && !readOnly) {
+          setPortfolioSync({ kind: 'saving' })
+          queueMicrotask(() => {
+            void (async () => {
+              try {
+                for (const slug of changedSlugs) {
+                  const n = next.find((x) => x.slug === slug)
+                  if (n) {
+                    const res = await upsertNoteToSupabase(client, userId, n)
+                    if (!res) {
+                      setPortfolioSync({
+                        kind: 'error',
+                        message: 'Не удалось обновить привязку заметок в Supabase',
+                      })
+                      return
+                    }
+                  }
+                }
+                touchSaved()
+              } catch {
+                setPortfolioSync({
+                  kind: 'error',
+                  message: 'Не удалось обновить привязку заметок в Supabase',
+                })
+              }
+            })()
+          })
+        }
+        return next
+      })
+    },
+    [client, userId, readOnly, setPortfolioSync, touchSaved],
+  )
+
   const value = useMemo(
     () => ({
       notes,
@@ -286,6 +335,7 @@ export function NotesProvider({ children }: { children: ReactNode }) {
       deleteNote,
       replaceAllNotes,
       mergeNotesBySlug,
+      detachProjectFromNotes,
     }),
     [
       notes,
@@ -296,6 +346,7 @@ export function NotesProvider({ children }: { children: ReactNode }) {
       deleteNote,
       replaceAllNotes,
       mergeNotesBySlug,
+      detachProjectFromNotes,
     ],
   )
 

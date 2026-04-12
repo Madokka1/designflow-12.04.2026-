@@ -6,6 +6,7 @@ import {
   modalEdgeBorderClass,
 } from '../lib/formInputClasses'
 import { CostRubInput } from './CostRubInput'
+import { DeadlineDdMmYyyyInput } from './DeadlineDdMmYyyyInput'
 import { DurationTokensInput } from './DurationTokensInput'
 import {
   PAYMENT_STATUSES,
@@ -151,13 +152,27 @@ export function StageFormModal({
                   />
                 </label>
                 <label className="block">
-                  <span className="sr-only">Планируемое время</span>
+                  <span className="mb-1 block text-[10px] font-light uppercase tracking-[-0.02em] text-ink/55">
+                    Планируемое время
+                  </span>
                   <DurationTokensInput
                     inputClass={inputClass}
-                    placeholder="часы минуты секунды, напр. 1 30 или 0 30 0"
+                    placeholder="ч м с, напр. 1 30 или 0 30 0"
                     aria-label="Планируемое время"
                     value={form.plannedTime}
                     onChange={(v) => update('plannedTime', v)}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-[10px] font-light uppercase tracking-[-0.02em] text-ink/55">
+                    Фактическое время
+                  </span>
+                  <DurationTokensInput
+                    inputClass={inputClass}
+                    placeholder="ч м с, напр. 2 15 0 — можно без таймера"
+                    aria-label="Фактическое время"
+                    value={form.actualTime}
+                    onChange={(v) => update('actualTime', v)}
                   />
                 </label>
               </div>
@@ -199,12 +214,14 @@ export function StageFormModal({
                   />
                 </label>
                 <label className="block">
-                  <span className="sr-only">Дедлайн</span>
-                  <input
-                    className={inputClass}
-                    placeholder="Дедлайн"
+                  <span className="mb-1 block text-[10px] font-light uppercase tracking-[-0.02em] text-ink/55">
+                    Дедлайн
+                  </span>
+                  <DeadlineDdMmYyyyInput
+                    inputClass={inputClass}
+                    aria-label="Дедлайн этапа"
                     value={form.deadline}
-                    onChange={(e) => update('deadline', e.target.value)}
+                    onChange={(v) => update('deadline', v)}
                   />
                 </label>
               </div>

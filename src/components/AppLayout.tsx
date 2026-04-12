@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, Outlet, useLocation } from 'react-router-dom'
+import { DesignFlowLogo } from './DesignFlowLogo'
 import { CommandPalette } from './CommandPalette'
 import { DeadlineNotificationScheduler } from './DeadlineNotificationScheduler'
 import { OfflineBanner } from './OfflineBanner'
@@ -11,8 +12,6 @@ import { useRemoteSync } from '../context/remoteSyncContext'
 import { useProjects } from '../hooks/useProjects'
 import { useSettings } from '../hooks/useSettings'
 import { formatDurationRu } from '../lib/formatDurationRu'
-import { accentButtonStyle } from '../lib/pickContrastText'
-
 const NAV = [
   { label: 'Главная', to: '/' },
   { label: 'Проекты', to: '/projects' },
@@ -44,6 +43,34 @@ function navActive(pathname: string, item: (typeof NAV)[number]): boolean {
   }
   if (item.label === 'Настройки') return pathname === '/settings'
   return false
+}
+
+type NavLabel = (typeof NAV)[number]['label']
+
+/** Группы разделов в полноэкранном меню (заголовок капсом + ссылки). */
+const NAV_MENU_GROUPS: { title: string; labels: readonly NavLabel[] }[] = [
+  {
+    title: 'Портфель и клиенты',
+    labels: ['Главная', 'Проекты', 'Клиенты', 'Шаблоны'],
+  },
+  {
+    title: 'Задачи и календарь',
+    labels: ['Задачи', 'Календарь', 'Сроки'],
+  },
+  {
+    title: 'Финансы и отчёты',
+    labels: ['Финансы', 'Отчёты'],
+  },
+  {
+    title: 'Контент и система',
+    labels: ['Заметки', 'Настройки'],
+  },
+]
+
+function navEntry(label: NavLabel): (typeof NAV)[number] {
+  const item = NAV.find((x) => x.label === label)
+  if (!item) throw new Error(`Unknown nav label: ${label}`)
+  return item
 }
 
 function HeaderPattern() {
@@ -81,34 +108,37 @@ function HeaderPattern() {
 
 const MOBILE_NAV_CLOSE_MS = 340
 
-function BurgerIcon({ open }: { open: boolean }) {
+function BurgerIcon({ open, light }: { open: boolean; light?: boolean }) {
   return (
     <svg
-      width="20"
-      height="20"
-      viewBox="0 0 20 20"
+      width="22"
+      height="22"
+      viewBox="0 0 22 22"
       fill="none"
       aria-hidden
-      className={`text-ink transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-        open ? 'rotate-90' : 'rotate-0'
+      className={`transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+        light ? 'text-white' : 'text-ink'
       }`}
     >
       {open ? (
-        <>
-          <path
-            d="M4 4l12 12M16 4L4 16"
-            stroke="currentColor"
-            strokeWidth="1.25"
-            strokeLinecap="round"
-            className="transition-opacity duration-200"
-          />
-        </>
+        <path
+          d="M5 5l12 12M17 5L5 17"
+          stroke="currentColor"
+          strokeWidth="1.35"
+          strokeLinecap="round"
+        />
       ) : (
         <>
           <path
-            d="M3 5h14M3 10h14M3 15h14"
+            d="M4 8h14"
             stroke="currentColor"
-            strokeWidth="1.25"
+            strokeWidth="1.35"
+            strokeLinecap="round"
+          />
+          <path
+            d="M4 14h14"
+            stroke="currentColor"
+            strokeWidth="1.35"
             strokeLinecap="round"
           />
         </>
@@ -117,14 +147,29 @@ function BurgerIcon({ open }: { open: boolean }) {
   )
 }
 
-function LogoMark() {
+function HeaderBarGrid({ patternId }: { patternId: string }) {
   return (
-    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-ink/5">
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
-        <rect x="2" y="2" width="6" height="6" rx="1" className="fill-ink" />
-        <rect x="10" y="2" width="6" height="6" rx="1" className="fill-ink/40" />
-        <rect x="2" y="10" width="6" height="6" rx="1" className="fill-ink/40" />
-        <rect x="10" y="10" width="6" height="6" rx="1" className="fill-ink" />
+    <div
+      className="pointer-events-none absolute inset-0 opacity-[0.14] dark:opacity-[0.12]"
+      aria-hidden
+    >
+      <svg className="h-full w-full" preserveAspectRatio="none">
+        <defs>
+          <pattern
+            id={patternId}
+            width="32"
+            height="32"
+            patternUnits="userSpaceOnUse"
+          >
+            <path
+              d="M32 0H0"
+              stroke="currentColor"
+              strokeWidth="0.5"
+              className="text-ink"
+            />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill={`url(#${patternId})`} />
       </svg>
     </div>
   )
@@ -133,6 +178,7 @@ function LogoMark() {
 export function AppLayout() {
   const location = useLocation()
   const navMenuId = useId()
+  const headerGridPatternId = useId().replace(/:/g, '')
   const {
     headerTimerSeconds,
     projects,
@@ -230,67 +276,23 @@ export function AppLayout() {
     <div className="relative min-h-svh w-full overflow-x-hidden bg-surface text-ink">
       <HeaderPattern />
 
-      <header className="relative z-50 flex justify-center px-4 pt-5 sm:px-10">
-        <div className="flex w-full max-w-[1840px] justify-center">
-          <div className="relative flex w-full min-[961px]:max-w-max min-[961px]:flex-wrap items-center gap-2 rounded-full border border-[rgba(255,255,255,0.05)] bg-[rgba(0,0,0,0.05)] px-2.5 py-2 pl-4 backdrop-blur-[20px] max-[960px]:max-w-full max-[960px]:justify-between sm:gap-2.5 sm:pl-5">
-            <Link
-              to="/"
-              className="flex items-center gap-2.5 transition-opacity duration-200 hover:opacity-85"
-              onClick={() => {
-                if (mobileNavOpen) beginCloseMobileNav()
-              }}
-            >
-              <LogoMark />
-              <div
-                className="hidden h-full min-h-[1rem] w-px self-stretch bg-[rgba(255,255,255,0.1)] min-[961px]:block"
-                aria-hidden
-              />
-            </Link>
-            <nav
-              className="hidden min-[961px]:flex min-[961px]:flex-wrap min-[961px]:items-center min-[961px]:gap-0 min-[961px]:pl-0"
-              aria-label="Основное меню"
-            >
-              {NAV.map((item) => {
-                const active = navActive(location.pathname, item)
-                return (
-                  <Link
-                    key={item.label}
-                    to={item.to}
-                    className={`rounded-md px-1.5 py-1 text-center text-sm font-light tracking-[-0.02em] transition-colors duration-200 min-[961px]:px-2 ${
-                      active ? 'text-ink' : 'text-ink/80 hover:text-ink'
-                    }`}
-                    aria-current={active ? 'page' : undefined}
-                  >
-                    {item.label}
-                  </Link>
-                )
-              })}
-            </nav>
+      <header className="relative z-50 border-b border-ink/10 bg-surface">
+        <HeaderBarGrid patternId={headerGridPatternId} />
+        <div className="relative mx-auto flex h-[4.25rem] w-full max-w-[1840px] items-center justify-between gap-6 px-4 sm:h-[4.5rem] sm:px-10">
+          <Link
+            to="/"
+            className="flex shrink-0 items-center text-ink transition-opacity duration-200 hover:opacity-80"
+            onClick={() => {
+              if (mobileNavOpen) beginCloseMobileNav()
+            }}
+            aria-label="DesignFlow — на главную"
+          >
+            <DesignFlowLogo className="h-[1.35rem] w-auto sm:h-6" />
+          </Link>
+          <div className="flex shrink-0 items-center gap-5 sm:gap-7">
             <button
               type="button"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[rgba(10,10,10,0.12)] text-ink transition-[transform,background-color,box-shadow] duration-200 ease-out hover:bg-ink/[0.06] active:scale-95 min-[961px]:hidden dark:border-white/15"
-              aria-expanded={mobileNavOpen && !mobileNavExiting}
-              aria-controls={`${navMenuId}-panel`}
-              aria-label={mobileNavOpen ? 'Закрыть меню' : 'Открыть меню'}
-              onClick={() => {
-                if (mobileNavOpen && !mobileNavExiting) beginCloseMobileNav()
-                else if (!mobileNavOpen) {
-                  setMobileNavExiting(false)
-                  setMobileNavPortalKey((k) => k + 1)
-                  setMobileNavOpen(true)
-                }
-              }}
-            >
-              <BurgerIcon open={mobileNavOpen} />
-            </button>
-            <div
-              className="mx-0.5 hidden h-6 w-px shrink-0 bg-[rgba(10,10,10,0.12)] min-[961px]:block"
-              aria-hidden
-            />
-            <button
-              type="button"
-              className="flex h-8 shrink-0 items-center justify-center rounded-full px-4 text-sm font-light tracking-[-0.05em] transition-[opacity,transform] duration-200 hover:opacity-90 active:scale-[0.98] motion-reduce:active:scale-100 min-[961px]:px-5"
-              style={accentButtonStyle(settings.accentColor)}
+              className="rounded-full border border-black bg-black px-4 py-2 text-sm font-light tabular-nums tracking-[-0.04em] text-white transition-[background-color,opacity] duration-200 hover:bg-neutral-900 active:opacity-90"
               aria-live="polite"
               title={
                 timerRunning
@@ -307,7 +309,23 @@ export function AppLayout() {
             >
               {formatDurationRu(headerTimerSeconds)}
             </button>
-
+            <button
+              type="button"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-ink/15 text-ink transition-[background-color,transform] duration-200 hover:bg-ink/[0.05] active:scale-95 dark:border-white/20 dark:hover:bg-white/[0.06]"
+              aria-expanded={mobileNavOpen && !mobileNavExiting}
+              aria-controls={`${navMenuId}-panel`}
+              aria-label={mobileNavOpen ? 'Закрыть меню' : 'Открыть меню'}
+              onClick={() => {
+                if (mobileNavOpen && !mobileNavExiting) beginCloseMobileNav()
+                else if (!mobileNavOpen) {
+                  setMobileNavExiting(false)
+                  setMobileNavPortalKey((k) => k + 1)
+                  setMobileNavOpen(true)
+                }
+              }}
+            >
+              <BurgerIcon open={mobileNavOpen && !mobileNavExiting} />
+            </button>
           </div>
         </div>
       </header>
@@ -377,7 +395,7 @@ export function AppLayout() {
         ? createPortal(
             <div
               key={mobileNavPortalKey}
-              className={`fixed inset-0 z-[100] flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden text-ink ${
+              className={`fixed inset-0 z-[100] flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-black text-white ${
                 mobileNavExiting
                   ? 'pointer-events-none opacity-0 translate-y-3 scale-[0.985] motion-reduce:translate-y-0 motion-reduce:scale-100 transition-[opacity,transform] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none'
                   : 'ui-mobile-nav-portal-enter motion-reduce:animate-none motion-reduce:opacity-100 motion-reduce:translate-y-0 motion-reduce:scale-100'
@@ -385,88 +403,100 @@ export function AppLayout() {
               style={{
                 paddingTop: 'env(safe-area-inset-top, 0px)',
                 paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-                background: `radial-gradient(130% 55% at 50% -15%, color-mix(in srgb, ${settings.accentColor} 22%, transparent), transparent 50%), var(--color-surface)`,
               }}
               role="dialog"
               aria-modal="true"
               aria-label="Меню навигации"
             >
-              <div className="relative flex shrink-0 items-center justify-between gap-3 border-b border-card-border/80 bg-surface/75 px-4 py-4 backdrop-blur-md supports-[backdrop-filter]:bg-surface/55 dark:bg-surface/70 dark:supports-[backdrop-filter]:bg-surface/45">
+              <div className="relative flex shrink-0 items-center justify-between gap-4 border-b border-white/10 px-4 py-5 sm:px-10">
                 <Link
                   to="/"
-                  className="flex shrink-0 items-center transition-opacity duration-200 hover:opacity-85"
+                  className="flex shrink-0 items-center text-white transition-opacity duration-200 hover:opacity-80"
                   onClick={() => {
                     if (mobileNavOpen) beginCloseMobileNav()
                   }}
+                  aria-label="DesignFlow — на главную"
                 >
-                  <LogoMark />
+                  <DesignFlowLogo className="h-[1.35rem] w-auto sm:h-6" />
                 </Link>
-                <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-sm font-light uppercase tracking-[-0.02em] text-ink/55">
-                  Разделы
-                </span>
-                <button
-                  type="button"
-                  className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-card-border text-ink transition-[transform,background-color,box-shadow] duration-200 ease-out hover:bg-ink/[0.06] active:scale-95 dark:border-white/15"
-                  aria-label="Закрыть меню"
-                  onClick={beginCloseMobileNav}
-                >
-                  <BurgerIcon open />
-                </button>
-              </div>
-              <div className="shrink-0 border-b border-card-border/80 px-4 py-3">
-                <p className="mb-2 text-xs font-light uppercase tracking-[-0.02em] text-ink/50">
-                  Таймер
-                </p>
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-center rounded-xl px-4 py-3.5 text-base font-light tracking-[-0.05em] transition-[opacity,transform] duration-200 hover:opacity-90 active:scale-[0.99] motion-reduce:active:scale-100"
-                  style={accentButtonStyle(settings.accentColor)}
-                  aria-live="polite"
-                  title={
-                    timerRunning
-                      ? 'Сохранить время и закрыть сеанс (панель скроется)'
-                      : 'Выбрать проект и этап для таймера'
-                  }
-                  onClick={() => {
-                    if (timerRunning) {
-                      stopStageTimer()
-                    } else {
-                      setMobileNavExiting(false)
-                      setMobileNavOpen(false)
-                      setTimerPickKey((n) => n + 1)
-                      setTimerPickOpen(true)
+                <div className="flex items-center gap-4 sm:gap-5">
+                  <button
+                    type="button"
+                    className="rounded-full border border-white/25 bg-black px-4 py-2 text-sm font-light tabular-nums tracking-[-0.04em] text-white transition-[background-color,opacity] duration-200 hover:bg-neutral-900 active:opacity-90"
+                    aria-live="polite"
+                    title={
+                      timerRunning
+                        ? 'Сохранить время и закрыть сеанс'
+                        : 'Выбрать проект и этап для таймера'
                     }
-                  }}
-                >
-                  {formatDurationRu(headerTimerSeconds)}
-                </button>
+                    onClick={() => {
+                      if (timerRunning) {
+                        stopStageTimer()
+                      } else {
+                        setMobileNavExiting(false)
+                        setMobileNavOpen(false)
+                        setTimerPickKey((n) => n + 1)
+                        setTimerPickOpen(true)
+                      }
+                    }}
+                  >
+                    {formatDurationRu(headerTimerSeconds)}
+                  </button>
+                  <button
+                    type="button"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/25 text-white transition-[background-color,transform] duration-200 hover:bg-white/10 active:scale-95"
+                    aria-label="Закрыть меню"
+                    onClick={beginCloseMobileNav}
+                  >
+                    <BurgerIcon open light />
+                  </button>
+                </div>
               </div>
+
               <nav
                 id={`${navMenuId}-panel`}
-                className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-3 py-3"
+                className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4 pb-10 pt-8 sm:px-10 sm:pb-14 sm:pt-12"
+                aria-label="Разделы приложения"
               >
-                {NAV.map((item, i) => {
-                  const active = navActive(location.pathname, item)
-                  return (
-                    <Link
-                      key={item.label}
-                      to={item.to}
-                      className={`ui-mobile-nav-link-anim mb-1 block rounded-xl border-l-[3px] border-transparent py-4 pl-[13px] pr-4 text-left text-base font-light tracking-[-0.02em] transition-[background-color,color,box-shadow,border-color] duration-200 ease-out last:mb-0 ${
-                        active
-                          ? 'bg-ink/[0.08] text-ink shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]'
-                          : 'text-ink/85 hover:bg-ink/[0.04] hover:text-ink active:scale-[0.99] motion-reduce:active:scale-100'
-                      }`}
-                      style={{
-                        animationDelay: `${i * 42}ms`,
-                        ...(active ? { borderLeftColor: settings.accentColor } : {}),
-                      }}
-                      aria-current={active ? 'page' : undefined}
-                      onClick={beginCloseMobileNav}
-                    >
-                      {item.label}
-                    </Link>
-                  )
-                })}
+                <div className="grid flex-1 grid-cols-1 gap-10 sm:grid-cols-2 sm:gap-x-12 sm:gap-y-12 lg:grid-cols-4 lg:gap-x-10 xl:gap-x-14">
+                  {NAV_MENU_GROUPS.map((group, gi) => (
+                    <div key={group.title} className="flex flex-col gap-0">
+                      <p className="mb-4 text-[11px] font-light uppercase tracking-[0.14em] text-white/40">
+                        {group.title}
+                      </p>
+                      <ul className="flex flex-col gap-1">
+                        {group.labels.map((label, li) => {
+                          const item = navEntry(label)
+                          const active = navActive(location.pathname, item)
+                          const i =
+                            NAV_MENU_GROUPS.slice(0, gi).reduce(
+                              (n, g) => n + g.labels.length,
+                              0,
+                            ) + li
+                          return (
+                            <li key={label}>
+                              <Link
+                                to={item.to}
+                                className={`ui-mobile-nav-link-anim block py-1.5 text-[15px] font-light tracking-[-0.02em] transition-opacity duration-200 sm:text-base ${
+                                  active
+                                    ? 'text-white'
+                                    : 'text-white/80 hover:text-white'
+                                }`}
+                                style={{
+                                  animationDelay: `${i * 32}ms`,
+                                }}
+                                aria-current={active ? 'page' : undefined}
+                                onClick={beginCloseMobileNav}
+                              >
+                                {item.label}
+                              </Link>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
               </nav>
             </div>,
             document.body,

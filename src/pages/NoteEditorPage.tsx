@@ -8,13 +8,14 @@ import {
   type MouseEvent,
   type ReactNode,
 } from 'react'
-import { Link, Navigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useSettings } from '../hooks/useSettings'
 import {
   fetchNoteRevisions,
   insertNoteRevision,
 } from '../lib/noteRevisionsSupabase'
+import { NoteEditMetaModal } from '../components/NoteEditMetaModal'
 import {
   BlockInsertMenu,
   type MenuAnchor,
@@ -74,8 +75,9 @@ export function NoteEditorPage() {
   const { settings } = useSettings()
   const readOnly = settings.readOnlyMode
   const userId = session?.user?.id ?? null
-  const { getNoteBySlug, updateNote } = useNotesContext()
+  const { getNoteBySlug, updateNote, deleteNote } = useNotesContext()
   const { projects } = useProjects()
+  const navigate = useNavigate()
   const note = noteSlug ? getNoteBySlug(noteSlug) : undefined
 
   const [revisions, setRevisions] = useState<
@@ -89,6 +91,7 @@ export function NoteEditorPage() {
     blockIndex: number
     anchor: MenuAnchor
   } | null>(null)
+  const [metaModalOpen, setMetaModalOpen] = useState(false)
   /** Индекс вставки без вложенного setState (избегает двойного вызова в Strict Mode) */
   const insertMenuRef = useRef<{ blockIndex: number } | null>(null)
 
@@ -132,6 +135,7 @@ export function NoteEditorPage() {
     if (previewMode) {
       insertMenuRef.current = null
       setMenu(null)
+      setMetaModalOpen(false)
     }
   }, [previewMode])
 
@@ -313,32 +317,24 @@ export function NoteEditorPage() {
               </p>
             </div>
           ) : (
-            <div className="flex flex-col gap-3">
-              <label className="block">
-                <span className="sr-only">Название</span>
-                <input
-                  className="w-full border-0 bg-transparent text-[32px] font-light leading-[0.9] tracking-[-0.09em] text-ink outline-none placeholder:text-ink/40"
-                  value={draft.title}
-                  placeholder="Название скрипта"
-                  onChange={(e) =>
-                    setDraft((d) => (d ? { ...d, title: e.target.value } : d))
-                  }
-                />
-              </label>
-              <label className="block">
-                <span className="sr-only">Описание</span>
-                <textarea
-                  className="mt-2 w-full resize-y border-0 bg-transparent text-base font-light leading-[0.9] tracking-[-0.09em] text-ink outline-none placeholder:text-ink/40"
-                  rows={3}
-                  value={draft.description}
-                  placeholder="Описание"
-                  onChange={(e) =>
-                    setDraft((d) =>
-                      d ? { ...d, description: e.target.value } : d,
-                    )
-                  }
-                />
-              </label>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-3">
+                <h2 className="text-[32px] font-light leading-[0.9] tracking-[-0.09em] text-ink">
+                  {draft.title.trim() || 'Без названия'}
+                </h2>
+                <p className="text-base font-light leading-[1.35] tracking-[-0.09em] text-ink/85 whitespace-pre-wrap">
+                  {draft.description.trim() || '—'}
+                </p>
+              </div>
+              {!readOnly ? (
+                <button
+                  type="button"
+                  className="h-8 w-fit shrink-0 rounded-full border border-card-border px-4 text-sm font-light tracking-[-0.04em] text-ink transition-colors hover:bg-ink/[0.04]"
+                  onClick={() => setMetaModalOpen(true)}
+                >
+                  Редактировать заметку
+                </button>
+              ) : null}
             </div>
           )}
           <p className="mt-6 text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink/70">
@@ -528,6 +524,25 @@ export function NoteEditorPage() {
           onPick={applyPickedBlock}
         />
       ) : null}
+
+      <NoteEditMetaModal
+        key={metaModalOpen ? `note-edit-${noteSlug}` : 'note-edit-closed'}
+        open={metaModalOpen}
+        initialTitle={draft.title}
+        initialDescription={draft.description}
+        readOnly={readOnly}
+        onClose={() => setMetaModalOpen(false)}
+        onSave={(t, d) => {
+          setDraft((prev) =>
+            prev ? { ...prev, title: t, description: d } : null,
+          )
+        }}
+        onDelete={() => {
+          if (!noteSlug) return
+          deleteNote(noteSlug)
+          navigate('/notes', { replace: true })
+        }}
+      />
     </main>
   )
 }

@@ -77,6 +77,8 @@ export type ProjectsContextValue = {
   mergePortfolioData: (payload: PortfolioBundle) => void
   /** Копия проекта с новым slug и новыми id этапов; сброс учёта времени на этапах. */
   duplicateProject: (projectSlug: string) => string | null
+  /** Полное удаление проекта из состояния и Supabase (этапы, задачи по slug, записи таймера). */
+  deleteProject: (projectSlug: string) => Promise<Error | null>
   /** Отправить текущее состояние портфеля в Supabase */
   syncPortfolioToRemote: () => Promise<void>
 

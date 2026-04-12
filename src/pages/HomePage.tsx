@@ -383,15 +383,6 @@ export function HomePage() {
     return sum
   }, [timerSessionLog])
 
-  const deadlinesWeek = useMemo(() => {
-    const today = startOfDay(new Date())
-    const end = new Date(today)
-    end.setDate(end.getDate() + 7)
-    return agenda.filter(
-      (e) => e.date.getTime() >= today.getTime() && e.date.getTime() < end.getTime(),
-    )
-  }, [agenda])
-
   const activityByDay = useMemo(
     () => buildActivityMap(notes, projects, calendarCustomEvents),
     [notes, projects, calendarCustomEvents],
@@ -526,40 +517,6 @@ export function HomePage() {
                   Нет предстоящих дат.
                 </p>
               )}
-              {deadlinesWeek.length > 0 ? (
-                <div className="mt-4 border-t border-[rgba(10,10,10,0.1)] pt-3 dark:border-white/10">
-                  <p className="text-[10px] font-light uppercase tracking-[-0.02em] text-ink/45">
-                    Дедлайны на 7 дней
-                  </p>
-                  <ul className="mt-2 flex max-h-[9rem] flex-col gap-2 overflow-y-auto text-[11px] font-light text-ink/70">
-                    {deadlinesWeek.slice(0, 8).map((it) => (
-                      <li key={it.id} className="min-w-0">
-                        <span className="tabular-nums text-ink/55">
-                          {it.date.toLocaleDateString('ru-RU', {
-                            day: 'numeric',
-                            month: 'short',
-                          })}
-                        </span>
-                        {' · '}
-                        {it.slug ? (
-                          <Link
-                            to={`/projects/${it.slug}`}
-                            className="text-ink/80 underline-offset-2 hover:text-ink hover:underline"
-                          >
-                            {it.label}
-                            {it.sublabel ? ` — ${it.sublabel}` : ''}
-                          </Link>
-                        ) : (
-                          <span>
-                            {it.label}
-                            {it.sublabel ? ` — ${it.sublabel}` : ''}
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
             </div>
           </aside>
 

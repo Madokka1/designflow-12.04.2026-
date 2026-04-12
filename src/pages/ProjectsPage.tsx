@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CreateProjectModal } from '../components/CreateProjectModal'
+import { PageTabButton, PageTabList } from '../components/PageTabs'
 import { getProjectSection } from '../lib/projectSection'
 import { useProjects } from '../hooks/useProjects'
 import type { Project } from '../types/project'
@@ -22,17 +23,18 @@ function ProjectCard({ project }: { project: Project }) {
       to={`/projects/${project.slug}`}
       className="block text-left outline-none ring-ink transition-shadow duration-300 focus-visible:ring-2"
     >
-      <article className="flex min-h-[220px] flex-col justify-between border border-[rgba(10,10,10,0.32)] p-5 transition-[background-color,transform,box-shadow] duration-300 ease-out motion-reduce:transition-colors hover:bg-ink/[0.02] hover:shadow-[0_12px_40px_-24px_rgba(10,10,10,0.35)] motion-reduce:hover:shadow-none hover:-translate-y-0.5 motion-reduce:hover:translate-y-0">
-        <div className="flex flex-col gap-3">
-          <h3 className="text-[32px] font-light leading-[0.9] tracking-[-0.09em]">
-            {project.title}
-          </h3>
-          <p className="text-base font-light leading-[0.9] tracking-[-0.09em] text-ink/90">
-            {project.client}
-          </p>
-        </div>
+      <article className="flex min-h-[220px] flex-col justify-between border border-[rgba(10,10,10,0.32)] transition-[background-color,transform,box-shadow] duration-300 ease-out motion-reduce:transition-colors hover:bg-ink/[0.02] hover:shadow-[0_12px_40px_-24px_rgba(10,10,10,0.35)] motion-reduce:hover:shadow-none hover:-translate-y-0.5 motion-reduce:hover:translate-y-0">
+        <div className="flex h-full min-h-[220px] flex-col justify-between p-5">
+          <div className="flex flex-col gap-3">
+            <h3 className="text-[32px] font-light leading-[0.9] tracking-[-0.09em]">
+              {project.title}
+            </h3>
+            <p className="text-base font-light leading-[0.9] tracking-[-0.09em] text-ink/90">
+              {project.client}
+            </p>
+          </div>
 
-        <div className="mt-6 flex flex-col gap-2.5">
+          <div className="mt-6 flex flex-col gap-2.5">
           <div className="flex items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-5">
               {(project.tags ?? CARD_FALLBACK_TAGS).map((label, i) => (
@@ -56,9 +58,10 @@ function ProjectCard({ project }: { project: Project }) {
             />
           </div>
 
-          <div className="flex items-center justify-between text-[10px] font-light uppercase leading-none tracking-[-0.02em]">
-            <span>дедлайн: {project.deadline}</span>
-            <span>{project.progress}%</span>
+            <div className="flex items-center justify-between text-[10px] font-light uppercase leading-none tracking-[-0.02em]">
+              <span>дедлайн: {project.deadline}</span>
+              <span>{project.progress}%</span>
+            </div>
           </div>
         </div>
       </article>
@@ -88,35 +91,21 @@ export function ProjectsPage() {
           Проекты
         </h1>
 
-        <div className="mt-10 flex flex-col gap-10">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-wrap items-end gap-5 lg:gap-8">
-              {FILTERS.map((label) => {
-                const active = label === filter
-                return (
-                  <button
+        <div className="mt-8 flex flex-col gap-10">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0 flex-1">
+              <PageTabList role="tablist" aria-label="Разделы проектов">
+                {FILTERS.map((label) => (
+                  <PageTabButton
                     key={label}
-                    type="button"
-                    aria-current={active ? 'page' : undefined}
+                    selected={label === filter}
+                    aria-current={label === filter ? 'page' : undefined}
                     onClick={() => setFilter(label)}
-                    className="group flex flex-col items-center gap-px"
                   >
-                    <span
-                      className={`text-base transition-colors duration-200 ${
-                        active ? 'font-normal text-ink' : 'font-normal text-ink/70'
-                      }`}
-                    >
-                      {label}
-                    </span>
-                    <span
-                      className={`h-px w-full origin-center scale-x-0 bg-ink transition-transform duration-200 ease-out group-hover:scale-x-100 ${
-                        active ? 'scale-x-100' : ''
-                      }`}
-                      aria-hidden
-                    />
-                  </button>
-                )
-              })}
+                    {label}
+                  </PageTabButton>
+                ))}
+              </PageTabList>
             </div>
 
             <button

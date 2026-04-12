@@ -20,6 +20,7 @@ type ProjectRow = {
   comment: string | null
   archived?: boolean
   client_id?: string | null
+  employee_hourly_rate_rub?: number | null
 }
 
 type StageRow = {
@@ -128,6 +129,11 @@ function rowToProject(row: ProjectRow, stages: StageRow[]): Project {
     stages: sorted.map(stageRowToStage),
     archived: Boolean(row.archived),
     clientId: row.client_id ?? null,
+    employeeHourlyRateRub:
+      typeof row.employee_hourly_rate_rub === 'number' &&
+      row.employee_hourly_rate_rub > 0
+        ? Math.floor(row.employee_hourly_rate_rub)
+        : undefined,
   }
 }
 
@@ -371,6 +377,7 @@ export async function upsertProjectToSupabase(
     comment: toSave.comment ?? null,
     archived: toSave.archived ?? false,
     client_id: toSave.clientId ?? null,
+    employee_hourly_rate_rub: toSave.employeeHourlyRateRub ?? null,
   }
   const { error: e1 } = await client.from('projects').upsert(row, {
     onConflict: 'id',
@@ -525,5 +532,27 @@ export async function deleteTemplateRemote(
     .from('project_templates')
     .delete()
     .eq('id', templateId)
+  return error
+}
+
+/** Удаление проекта; этапы удаляются каскадом (FK). */
+export async function deleteProjectFromSupabase(
+  client: SupabaseClient,
+  projectId: string,
+): Promise<Error | null> {
+  const { error } = await client.from('projects').delete().eq('id', projectId)
+  return error
+}
+
+export async function deleteTasksForProjectSlugRemote(
+  client: SupabaseClient,
+  userId: string,
+  projectSlug: string,
+): Promise<Error | null> {
+  const { error } = await client
+    .from('tasks')
+    .delete()
+    .eq('user_id', userId)
+    .eq('project_slug', projectSlug)
   return error
 }

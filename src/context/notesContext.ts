@@ -20,6 +20,8 @@ export type NotesContextValue = {
   replaceAllNotes: (next: Note[]) => void
   /** Слияние по slug: существующие заметки перезаписываются, новые добавляются. */
   mergeNotesBySlug: (incoming: Note[]) => void
+  /** Убрать slug проекта из всех заметок (после удаления проекта); синхронизация с Supabase. */
+  detachProjectFromNotes: (projectSlug: string) => void
 }
 
 export const NotesContext = createContext<NotesContextValue | null>(null)

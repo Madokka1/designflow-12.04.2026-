@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { PageTabButton, PageTabList } from '../components/PageTabs'
 import { useProjects } from '../hooks/useProjects'
 import { useSettings } from '../hooks/useSettings'
+import { DeadlineDdMmYyyyInput } from '../components/DeadlineDdMmYyyyInput'
 import { accentButtonStyle } from '../lib/pickContrastText'
 import { formInputUnderlineClass } from '../lib/formInputClasses'
 
@@ -62,33 +64,37 @@ export function TasksPage() {
         Inbox и привязка к проектам; метки через запятую.
       </p>
 
-      <div className="mt-10 flex flex-wrap items-center gap-2 border-b border-card-border pb-4">
-        {(
-          [
-            ['open', 'Активные'],
-            ['all', 'Все'],
-            ['done', 'Выполненные'],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setFilter(id)}
-            className={`rounded-full px-3 py-1 text-xs font-light ${
-              filter === id ? 'bg-ink/10 text-ink' : 'text-ink/55 hover:text-ink'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0 flex-1">
+          <PageTabList role="tablist" aria-label="Фильтр задач">
+            {(
+              [
+                ['open', 'Активные'],
+                ['all', 'Все'],
+                ['done', 'Выполненные'],
+              ] as const
+            ).map(([id, label]) => (
+              <PageTabButton
+                key={id}
+                selected={filter === id}
+                aria-current={filter === id ? 'page' : undefined}
+                onClick={() => setFilter(id)}
+              >
+                {label}
+              </PageTabButton>
+            ))}
+          </PageTabList>
+        </div>
         <button
           type="button"
           onClick={() => {
             setBulkSelect((v) => !v)
             setPicked(new Set())
           }}
-          className={`ml-auto rounded-full px-3 py-1 text-xs font-light ${
-            bulkSelect ? 'bg-ink/10 text-ink' : 'text-ink/55 hover:text-ink'
+          className={`h-8 shrink-0 self-start rounded-full border px-5 text-sm font-light tracking-[-0.05em] transition-[opacity,transform,background-color,border-color] duration-200 hover:opacity-90 active:scale-[0.98] motion-reduce:active:scale-100 lg:self-auto ${
+            bulkSelect
+              ? 'border-ink bg-ink/10 text-ink'
+              : 'border-card-border text-ink/60 hover:text-ink'
           }`}
         >
           {bulkSelect ? 'Закрыть выделение' : 'Массовый выбор'}
@@ -196,11 +202,16 @@ export function TasksPage() {
             placeholder="Что сделать"
           />
         </label>
-        <label className="w-36">
+        <label className="min-w-[12rem] max-w-full sm:max-w-[16rem]">
           <span className="text-[10px] font-light uppercase text-ink/50">
-            Срок ДД.ММ.ГГГГ
+            Срок
           </span>
-          <input className={input} value={due} onChange={(e) => setDue(e.target.value)} />
+          <DeadlineDdMmYyyyInput
+            inputClass={input}
+            aria-label="Срок задачи"
+            value={due}
+            onChange={setDue}
+          />
         </label>
         <label className="min-w-[10rem] flex-1">
           <span className="text-[10px] font-light uppercase text-ink/50">

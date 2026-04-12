@@ -24,6 +24,8 @@ export type CreateProjectForm = {
   /** id из справочника clients (пусто — только текст client) */
   clientId: string
   cost: string
+  /** руб/ч, только цифры как у стоимости проекта */
+  hourlyRate: string
   comment: string
   deadline: string
   projectStatus: (typeof PROJECT_STATUSES)[number]
@@ -37,6 +39,7 @@ export function defaultProjectForm(): CreateProjectForm {
     client: '',
     clientId: '',
     cost: '',
+    hourlyRate: '',
     comment: '',
     deadline: '',
     projectStatus: 'В работе',

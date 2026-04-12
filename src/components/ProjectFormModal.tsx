@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { CostRubInput } from './CostRubInput'
+import { DeadlineDdMmYyyyInput } from './DeadlineDdMmYyyyInput'
 import {
   formInputUnderlineClass,
   modalEdgeBorderClass,
@@ -29,6 +30,9 @@ type Props = {
     onChange: (templateId: string) => void
     options: { id: string; name: string }[]
   }
+  /** Редактирование: показать опасную зону «Удалить проект». */
+  showDeleteProject?: boolean
+  onDeleteProject?: () => void | Promise<void>
 }
 
 function ChipRow<T extends string>({
@@ -73,6 +77,8 @@ export function ProjectFormModal({
   zClassName = 'z-50',
   clientsForPicker,
   templateSelect,
+  showDeleteProject,
+  onDeleteProject,
 }: Props) {
   const titleId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
@@ -123,8 +129,17 @@ export function ProjectFormModal({
         aria-labelledby={titleId}
         className={`ui-modal-panel-right relative flex h-full w-full max-w-[960px] flex-col border-l ${modalEdgeBorderClass} bg-surface shadow-none`}
       >
-        <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-32 pt-16 sm:px-10 sm:pt-20">
+        <form className="flex h-full min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
+          <div className="flex shrink-0 items-center border-b border-card-border py-3 pl-[max(1.5rem,env(safe-area-inset-left))] pr-[max(1.5rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:hidden">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex text-sm font-light tracking-[-0.02em] text-ink underline-offset-4 outline-none ring-ink transition-opacity hover:underline hover:opacity-90 focus-visible:ring-2"
+            >
+              ← Закрыть
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-6 sm:px-10 sm:pb-6 sm:pt-20">
             <h2
               id={titleId}
               className="text-[clamp(2rem,5vw,4rem)] font-light leading-[0.9] tracking-[-0.09em]"
@@ -214,6 +229,18 @@ export function ProjectFormModal({
                     onChangeDigits={(d) => update('cost', d)}
                   />
                 </label>
+                <label className="block">
+                  <span className="mb-1 block text-[10px] font-light uppercase tracking-[-0.02em] text-ink/55">
+                    Стоимость часа сотрудника (руб/ч)
+                  </span>
+                  <CostRubInput
+                    inputClass={inputClass}
+                    placeholder="Только цифры, напр. 2000"
+                    aria-label="Стоимость часа сотрудника в рублях за час"
+                    valueDigits={form.hourlyRate}
+                    onChangeDigits={(d) => update('hourlyRate', d)}
+                  />
+                </label>
               </div>
 
               <div className="flex max-w-[405px] flex-col gap-10">
@@ -264,32 +291,62 @@ export function ProjectFormModal({
                   />
                 </label>
                 <label className="block">
-                  <span className="sr-only">Дедлайн</span>
-                  <input
-                    className={inputClass}
-                    placeholder="Дедлайн"
+                  <span className="mb-1 block text-[10px] font-light uppercase tracking-[-0.02em] text-ink/55">
+                    Дедлайн
+                  </span>
+                  <DeadlineDdMmYyyyInput
+                    inputClass={inputClass}
+                    aria-label="Дедлайн проекта"
                     value={form.deadline}
-                    onChange={(e) => update('deadline', e.target.value)}
+                    onChange={(v) => update('deadline', v)}
                   />
                 </label>
               </div>
             </div>
           </div>
 
-          <div className="absolute bottom-0 left-0 right-0 flex flex-wrap items-center justify-between gap-4 border-t border-transparent bg-surface px-6 py-6 sm:px-10 sm:py-8">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-card-border bg-surface px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-10 sm:py-6">
             <button
               type="submit"
               className="h-8 rounded-full bg-fill-contrast-bg px-5 text-sm font-light tracking-[-0.05em] text-fill-contrast-fg transition-opacity hover:opacity-90"
             >
               {submitLabel}
             </button>
-            <button
-              type="button"
-              className="h-8 rounded-full bg-fill-contrast-bg px-5 text-sm font-light tracking-[-0.05em] text-fill-contrast-fg transition-opacity hover:opacity-90"
-              onClick={reset}
-            >
-              Сбросить
-            </button>
+            <div className="flex flex-wrap items-center justify-end gap-3 sm:gap-4">
+              <button
+                type="button"
+                className="h-8 rounded-full border border-card-border bg-surface px-5 text-sm font-light tracking-[-0.05em] text-ink transition-colors hover:bg-ink/[0.04]"
+                onClick={onClose}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                className="h-8 rounded-full bg-fill-contrast-bg px-5 text-sm font-light tracking-[-0.05em] text-fill-contrast-fg transition-opacity hover:opacity-90"
+                onClick={reset}
+              >
+                Сбросить
+              </button>
+              {showDeleteProject && onDeleteProject ? (
+                <button
+                  type="button"
+                  className="h-8 rounded-full bg-fill-contrast-bg px-5 text-sm font-light tracking-[-0.05em] text-fill-contrast-fg transition-opacity hover:opacity-90"
+                  onClick={() => {
+                    if (
+                      !window.confirm(
+                        'Удалить проект безвозвратно? Данные в Supabase и этапы будут удалены.',
+                      )
+                    ) {
+                      return
+                    }
+                    void onDeleteProject()
+                  }}
+                  aria-label="Удалить проект"
+                >
+                  Удалить проект
+                </button>
+              ) : null}
+            </div>
           </div>
         </form>
       </div>

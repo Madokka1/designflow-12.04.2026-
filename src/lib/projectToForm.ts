@@ -25,11 +25,14 @@ export function projectToForm(p: Project): CreateProjectForm {
   }
 
   const rub = parseAmountRub(p.amount)
+  const rate = p.employeeHourlyRateRub
   return {
     title: p.title,
     client: p.client,
     clientId: p.clientId ?? '',
     cost: String(Math.max(0, rub)),
+    hourlyRate:
+      rate != null && rate > 0 ? String(Math.max(0, Math.floor(rate))) : '',
     comment: p.comment ?? '',
     deadline: p.deadline === '—' ? '' : p.deadline,
     projectStatus,

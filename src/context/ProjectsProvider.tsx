@@ -16,8 +16,14 @@ import {
 import { formatDurationRu } from '../lib/formatDurationRu'
 import { formatRubDots, parseAmountRub } from '../lib/parseAmountRub'
 import { invokeTelegramCreateNotify } from '../lib/invokeTelegramCreateNotify'
+import { buildActualFromStageForm } from '../lib/stageToForm'
+import {
+  normalizeDeadlineStored,
+  normalizeTaskDueRaw,
+} from '../lib/parseRuDate'
 import { uniqueSlug } from '../lib/slug'
 import { useAuth } from '../hooks/useAuth'
+import { useNotesContext } from '../hooks/useNotesContext'
 import { useSettings } from '../hooks/useSettings'
 import { useRemoteSync } from './remoteSyncContext'
 import {
@@ -30,6 +36,8 @@ import { cloneStagesWithNewIds } from '../lib/cloneStages'
 import { mergeProjectsBySlug, mergeRecordsById } from '../lib/portfolioMerge'
 import {
   deleteClientRemote,
+  deleteProjectFromSupabase,
+  deleteTasksForProjectSlugRemote,
   deleteTaskRemote,
   deleteTemplateRemote,
   fetchPortfolioBundle,
@@ -43,6 +51,7 @@ import {
 } from '../lib/portfolioSupabase'
 import {
   clearTimerSessionLogRemote,
+  deleteTimerLogForProjectSlugRemote,
   fetchTimerSessionLogFromSupabase,
   insertTimerSessionLogRow,
   mergeTimerSessionLogs,
@@ -65,13 +74,14 @@ function formToProject(
   const client = data.client.trim() || 'Клиент'
   const rub = parseAmountRub(data.cost)
   const amount = formatRubDots(rub)
-  const deadline = data.deadline.trim() || '—'
+  const deadline = normalizeDeadlineStored(data.deadline)
   const tags = [
     data.projectStatus,
     data.paymentStatus,
     data.section,
   ] as const
   const cid = data.clientId.trim()
+  const rateRub = parseAmountRub(data.hourlyRate)
   return {
     id,
     slug,
@@ -85,6 +95,7 @@ function formToProject(
     comment: data.comment.trim() || undefined,
     archived: false,
     clientId: cid ? cid : null,
+    employeeHourlyRateRub: rateRub > 0 ? rateRub : undefined,
   }
 }
 
@@ -93,13 +104,14 @@ function applyProjectForm(p: Project, data: CreateProjectForm): Project {
   const client = data.client.trim() || 'Клиент'
   const rub = parseAmountRub(data.cost)
   const amount = formatRubDots(rub)
-  const deadline = data.deadline.trim() || '—'
+  const deadline = normalizeDeadlineStored(data.deadline)
   const tags = [
     data.projectStatus,
     data.paymentStatus,
     data.section,
   ] as const
   const cid = data.clientId.trim()
+  const rateRub = parseAmountRub(data.hourlyRate)
   return {
     ...p,
     title,
@@ -109,26 +121,15 @@ function applyProjectForm(p: Project, data: CreateProjectForm): Project {
     tags: [...tags],
     comment: data.comment.trim() || undefined,
     clientId: cid ? cid : null,
+    employeeHourlyRateRub: rateRub > 0 ? rateRub : undefined,
   }
 }
 
 function applyStageForm(data: CreateStageForm, previous: ProjectStage): ProjectStage {
   const next = formToStage(data, previous.id)
-  const tracked = previous.timeSpentSeconds
-  const checklist = data.checklist.map((c) => ({
-    id: c.id,
-    label: c.label,
-    done: c.done,
-  }))
   return {
     ...next,
     addedAt: previous.addedAt,
-    checklist: checklist.length > 0 ? checklist : undefined,
-    timeSpentSeconds: tracked,
-    actual:
-      tracked != null
-        ? `фактическое время: ${formatDurationRu(tracked)}`
-        : next.actual,
   }
 }
 
@@ -143,9 +144,7 @@ function formToStage(data: CreateStageForm, id: string): ProjectStage {
   }
   const planned = `Планируемое время: ${plannedPhrase} · Стоимость этапа: ${costDisplay} · Оплата: ${data.paymentStatus}`
   const comment = data.comment.trim()
-  const actual = comment
-    ? `фактическое время: — · ${comment}`
-    : 'фактическое время: —'
+  const { actual, timeSpentSeconds } = buildActualFromStageForm(data)
   const checklist =
     data.checklist.length > 0
       ? data.checklist.map((c) => ({
@@ -158,13 +157,14 @@ function formToStage(data: CreateStageForm, id: string): ProjectStage {
     id,
     name: data.name.trim() || 'Этап',
     status: data.stageStatus,
-    deadline: data.deadline.trim() || '—',
+    deadline: normalizeDeadlineStored(data.deadline),
     planned,
     actual,
     actualInPill: data.stageStatus === 'В работе',
     description: comment || undefined,
     modalTags: [data.paymentStatus],
     checklist,
+    timeSpentSeconds,
   }
 }
 
@@ -189,6 +189,7 @@ function sessionSecondsToCommit(ts: RunningStageTimer): number {
 export function ProjectsProvider({ children }: { children: ReactNode }) {
   const { client, session } = useAuth()
   const userId = session?.user?.id ?? null
+  const { detachProjectFromNotes } = useNotesContext()
   const { settings } = useSettings()
   const readOnly = settings.readOnlyMode
   const { setPortfolioSync, touchSaved } = useRemoteSync()
@@ -504,10 +505,13 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
           if (idx === -1) return p
           const st = base[idx]
           const nextSec = (st.timeSpentSeconds ?? 0) + seconds
+          const desc = st.description?.trim()
           base[idx] = {
             ...st,
             timeSpentSeconds: nextSec,
-            actual: `фактическое время: ${formatDurationRu(nextSec)}`,
+            actual: desc
+              ? `фактическое время: ${formatDurationRu(nextSec)} · ${desc}`
+              : `фактическое время: ${formatDurationRu(nextSec)}`,
           }
           return { ...p, stages: base }
         }),
@@ -796,6 +800,81 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     [client, userId, readOnly, reportSaveError, setPortfolioSync],
   )
 
+  const deleteProject = useCallback(
+    async (projectSlug: string): Promise<Error | null> => {
+      const p = projectsRef.current.find((x) => x.slug === projectSlug)
+      if (!p) return new Error('Проект не найден')
+      if (readOnly) {
+        return new Error('Режим только чтения: удаление отключено')
+      }
+      const tid = persistProjectTimers.current.get(projectSlug)
+      if (tid != null) {
+        window.clearTimeout(tid)
+        persistProjectTimers.current.delete(projectSlug)
+      }
+      const r = runningRef.current
+      if (r?.projectSlug === projectSlug) {
+        runningRef.current = null
+        setSessionElapsed(0)
+        setRunningStageTimer(null)
+      }
+
+      const applyLocalCleanup = () => {
+        detachProjectFromNotes(projectSlug)
+        const nextLog = getTimerSessionLog().filter(
+          (e) => e.projectSlug !== projectSlug,
+        )
+        replaceTimerSessionLog(nextLog)
+        setTimerSessionLog(nextLog)
+        setTasks((prev) => prev.filter((t) => t.projectSlug !== projectSlug))
+        setProjects((prev) => prev.filter((x) => x.slug !== projectSlug))
+      }
+
+      if (!client || !userId) {
+        applyLocalCleanup()
+        touchSaved()
+        return null
+      }
+
+      setPortfolioSync({ kind: 'saving' })
+      const e1 = await deleteTasksForProjectSlugRemote(
+        client,
+        userId,
+        projectSlug,
+      )
+      if (e1) {
+        reportSaveError(e1)
+        return e1
+      }
+      const e2 = await deleteTimerLogForProjectSlugRemote(
+        client,
+        userId,
+        projectSlug,
+      )
+      if (e2) {
+        reportSaveError(e2)
+        return e2
+      }
+      const e3 = await deleteProjectFromSupabase(client, p.id)
+      if (e3) {
+        reportSaveError(e3)
+        return e3
+      }
+      applyLocalCleanup()
+      reportSaveError(null)
+      return null
+    },
+    [
+      client,
+      userId,
+      readOnly,
+      detachProjectFromNotes,
+      reportSaveError,
+      setPortfolioSync,
+      touchSaved,
+    ],
+  )
+
   const setProjectArchived = useCallback(
     (projectSlug: string, archived: boolean) => {
       setProjects((prev) =>
@@ -926,7 +1005,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         id,
         title: partial.title.trim() || 'Задача',
         done: partial.done ?? false,
-        dueDate: partial.dueDate ?? '',
+        dueDate: normalizeTaskDueRaw(partial.dueDate ?? ''),
         projectSlug: partial.projectSlug ?? null,
         labels: partial.labels ?? [],
         sortOrder,
@@ -1104,6 +1183,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       setProjectArchived,
       saveProjectAsTemplate,
       duplicateProject,
+      deleteProject,
       runningStageTimer,
       startStageTimer,
       stopStageTimer,
@@ -1150,6 +1230,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       setProjectArchived,
       saveProjectAsTemplate,
       duplicateProject,
+      deleteProject,
       runningStageTimer,
       startStageTimer,
       stopStageTimer,

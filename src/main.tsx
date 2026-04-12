@@ -18,11 +18,11 @@ createRoot(document.getElementById('root')!).render(
       <SettingsProvider>
         <AuthProvider>
           <RemoteSyncProvider>
-            <ProjectsProvider>
-              <NotesProvider>
+            <NotesProvider>
+              <ProjectsProvider>
                 <App />
-              </NotesProvider>
-            </ProjectsProvider>
+              </ProjectsProvider>
+            </NotesProvider>
           </RemoteSyncProvider>
         </AuthProvider>
       </SettingsProvider>

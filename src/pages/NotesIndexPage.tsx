@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { PageTabButton, PageTabList } from '../components/PageTabs'
 import { useNotesContext } from '../hooks/useNotesContext'
 import { useProjects } from '../hooks/useProjects'
 import type { Note } from '../types/note'
@@ -23,11 +24,9 @@ function formatNoteDate(iso: string) {
 function NoteCard({
   note,
   projectTitleBySlug,
-  onDelete,
 }: {
   note: Note
   projectTitleBySlug: Map<string, string>
-  onDelete: () => void
 }) {
   const attached = note.attachedProjectSlugs ?? []
   return (
@@ -71,24 +70,13 @@ function NoteCard({
             {formatNoteDate(note.createdAt)}
           </span>
         </div>
-        <button
-          type="button"
-          className="self-start text-sm font-light tracking-[-0.02em] text-ink/50 underline-offset-4 hover:text-ink hover:underline"
-          onClick={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            onDelete()
-          }}
-        >
-          Удалить
-        </button>
       </div>
     </article>
   )
 }
 
 export function NotesIndexPage() {
-  const { notes, createNote, deleteNote } = useNotesContext()
+  const { notes, createNote } = useNotesContext()
   const { projects } = useProjects()
   const navigate = useNavigate()
 
@@ -131,81 +119,54 @@ export function NotesIndexPage() {
         </h1>
       </div>
 
-      <div className="mt-10 flex flex-col gap-10">
+      <div className="mt-8 flex flex-col gap-10">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex min-w-0 flex-col gap-6">
-            <div className="flex flex-wrap items-end gap-5 lg:gap-8">
-              {SCOPE_FILTERS.map((label) => {
-                const active = label === scope
-                return (
-                  <button
-                    key={label}
-                    type="button"
-                    aria-current={active ? 'page' : undefined}
-                    onClick={() => {
-                      setScope(label)
-                      if (label === 'Без проекта') setProjectSlug(null)
-                    }}
-                    className="group flex flex-col items-center gap-px"
-                  >
-                    <span
-                      className={`text-base transition-colors ${
-                        active
-                          ? 'font-normal text-ink'
-                          : 'font-normal text-ink/70'
-                      }`}
-                    >
-                      {label}
-                    </span>
-                    <span
-                      className={`h-px w-full origin-center scale-x-0 bg-ink transition-transform group-hover:scale-x-100 ${
-                        active ? 'scale-x-100' : ''
-                      }`}
-                      aria-hidden
-                    />
-                  </button>
-                )
-              })}
-            </div>
+            <PageTabList role="tablist" aria-label="Область заметок">
+              {SCOPE_FILTERS.map((label) => (
+                <PageTabButton
+                  key={label}
+                  selected={label === scope}
+                  aria-current={label === scope ? 'page' : undefined}
+                  onClick={() => {
+                    setScope(label)
+                    if (label === 'Без проекта') setProjectSlug(null)
+                  }}
+                >
+                  {label}
+                </PageTabButton>
+              ))}
+            </PageTabList>
 
             {sortedProjects.length > 0 && scope !== 'Без проекта' ? (
               <div className="flex flex-col gap-3">
                 <span className="text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink/55">
                   Проект
                 </span>
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
+                <PageTabList role="tablist" aria-label="Фильтр по проекту">
+                  <PageTabButton
+                    selected={projectSlug === null}
                     onClick={() => setProjectSlug(null)}
-                    className={`rounded-full border px-3 py-1 text-sm font-light tracking-[-0.02em] transition-colors ${
-                      projectSlug === null
-                        ? 'border-fill-contrast-bg bg-fill-contrast-bg text-fill-contrast-fg'
-                        : `${BORDER} text-ink hover:bg-ink/[0.04]`
-                    }`}
                   >
                     Любой
-                  </button>
+                  </PageTabButton>
                   {sortedProjects.map((p) => {
                     const active = projectSlug === p.slug
                     return (
-                      <button
+                      <PageTabButton
                         key={p.id}
-                        type="button"
+                        selected={active}
+                        title={p.title}
+                        className="max-w-[min(100%,12rem)] min-w-0 shrink truncate"
                         onClick={() =>
                           setProjectSlug(active ? null : p.slug)
                         }
-                        className={`max-w-[200px] truncate rounded-full border px-3 py-1 text-sm font-light tracking-[-0.02em] transition-colors ${
-                          active
-                            ? 'border-fill-contrast-bg bg-fill-contrast-bg text-fill-contrast-fg'
-                            : `${BORDER} text-ink hover:bg-ink/[0.04]`
-                        }`}
-                        title={p.title}
                       >
                         {p.title}
-                      </button>
+                      </PageTabButton>
                     )
                   })}
-                </div>
+                </PageTabList>
               </div>
             ) : null}
           </div>
@@ -235,7 +196,6 @@ export function NotesIndexPage() {
                 key={note.id}
                 note={note}
                 projectTitleBySlug={projectTitleBySlug}
-                onDelete={() => deleteNote(note.slug)}
               />
             ))
           )}

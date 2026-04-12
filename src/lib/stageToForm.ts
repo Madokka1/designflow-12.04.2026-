@@ -1,6 +1,8 @@
+import { formatDurationRu } from './formatDurationRu'
 import {
   formatDurationTokensForInput,
   parseDurationRuPhrase,
+  parseDurationTokensLoose,
 } from './durationTokens'
 import { parseAmountRub } from './parseAmountRub'
 import type { ProjectStage } from '../types/project'
@@ -53,6 +55,49 @@ function commentFromActual(actual: string): string {
   return actual.slice(i + sep.length).trim()
 }
 
+function secondsToDurationInput(sec: number): string {
+  const s = Math.max(0, Math.floor(sec))
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const ss = s % 60
+  return formatDurationTokensForInput(h, m, ss)
+}
+
+/** Разбор «фактическое время: …» из строки actual (если нет timeSpentSeconds в данных) */
+function parseActualSecondsFromStageActual(actual: string): number | undefined {
+  const idx = actual.indexOf(' · ')
+  const head = idx >= 0 ? actual.slice(0, idx).trim() : actual.trim()
+  const m = head.match(/^фактическое время:\s*(.+)$/i)
+  if (!m) return undefined
+  const inner = m[1].trim()
+  if (!inner || inner === '—') return undefined
+  const p = parseDurationRuPhrase(inner)
+  if (!p) return undefined
+  return p.h * 3600 + p.m * 60 + p.s
+}
+
+/** Строка actual и секунды из формы этапа */
+export function buildActualFromStageForm(data: CreateStageForm): {
+  timeSpentSeconds?: number
+  actual: string
+} {
+  const comment = data.comment.trim()
+  const trimmed = data.actualTime.trim()
+  let sec: number | undefined
+  if (trimmed) {
+    const p = parseDurationTokensLoose(trimmed)
+    if (p != null) sec = p.h * 3600 + p.m * 60 + p.s
+  }
+  const timePhrase = sec == null ? '—' : formatDurationRu(sec)
+  const actual = comment
+    ? `фактическое время: ${timePhrase} · ${comment}`
+    : `фактическое время: ${timePhrase}`
+  return {
+    timeSpentSeconds: sec,
+    actual,
+  }
+}
+
 /** Заполняет форму редактирования из модели этапа */
 export function stageToForm(stage: ProjectStage): CreateStageForm {
   const planned = stage.planned
@@ -78,9 +123,18 @@ export function stageToForm(stage: ProjectStage): CreateStageForm {
   const deadline = stage.deadline === '—' ? '' : stage.deadline
   const plannedTime = plannedTimeInputFromPlanned(planned)
 
+  let actualTime = ''
+  if (stage.timeSpentSeconds != null && stage.timeSpentSeconds >= 0) {
+    actualTime = secondsToDurationInput(stage.timeSpentSeconds)
+  } else {
+    const parsed = parseActualSecondsFromStageActual(stage.actual)
+    if (parsed != null) actualTime = secondsToDurationInput(parsed)
+  }
+
   return {
     name: stage.name,
     plannedTime,
+    actualTime,
     cost,
     comment,
     deadline,

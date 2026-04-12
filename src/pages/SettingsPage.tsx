@@ -32,6 +32,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useNotesContext } from '../hooks/useNotesContext'
 import { useProjects } from '../hooks/useProjects'
 import { useSettings } from '../hooks/useSettings'
+import { PageTabButton, PageTabList } from '../components/PageTabs'
 import { formInputUnderlineClass } from '../lib/formInputClasses'
 import {
   createTelegramLinkToken,
@@ -452,36 +453,29 @@ export function SettingsPage() {
         </div>
       </div>
 
-      <div
-        className={`mt-8 flex flex-wrap gap-1 border-b ${BORDER}`}
+      <PageTabList
+        className="mt-8"
         role="tablist"
         aria-label="Разделы настроек"
       >
         {tabs.map((t) => {
           const selected = tab === t.id
           return (
-            <button
+            <PageTabButton
               key={t.id}
-              type="button"
-              role="tab"
-              aria-selected={selected}
+              selected={selected}
               id={`settings-tab-${t.id}`}
               aria-controls={`settings-panel-${t.id}`}
               onClick={() => {
                 if (t.id !== 'security') setPwdFeedback('idle')
                 setTab(t.id)
               }}
-              className={`relative -mb-px border-b-2 px-3 py-2.5 text-sm font-light tracking-[-0.04em] transition-colors duration-200 ${
-                selected
-                  ? 'border-ink text-ink'
-                  : 'border-transparent text-ink/55 hover:text-ink/80'
-              }`}
             >
               {t.label}
-            </button>
+            </PageTabButton>
           )
         })}
-      </div>
+      </PageTabList>
 
       <div className="mt-10 max-w-4xl">
         <div

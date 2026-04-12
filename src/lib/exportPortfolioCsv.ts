@@ -73,6 +73,7 @@ export function buildPortfolioCsvExport(params: {
       'title',
       'client',
       'amount',
+      'employeeHourlyRateRub',
       'deadline',
       'progress',
       'tags',
@@ -87,6 +88,9 @@ export function buildPortfolioCsvExport(params: {
         p.title,
         p.client,
         p.amount,
+        p.employeeHourlyRateRub != null
+          ? String(p.employeeHourlyRateRub)
+          : '',
         p.deadline,
         String(p.progress),
         JSON.stringify(p.tags ?? []),

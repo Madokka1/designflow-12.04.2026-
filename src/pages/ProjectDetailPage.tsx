@@ -10,6 +10,8 @@ import { DEFAULT_PROJECT_STAGES } from '../data/defaultStages'
 import { useNotesContext } from '../hooks/useNotesContext'
 import { useProjects } from '../hooks/useProjects'
 import { formatDurationRu } from '../lib/formatDurationRu'
+import { formatRubDots } from '../lib/parseAmountRub'
+import { computeProjectProfitRub } from '../lib/projectProfit'
 import { stagePlannedRows } from '../lib/stagePlannedRows'
 import type { ProjectStage } from '../types/project'
 
@@ -94,6 +96,7 @@ export function ProjectDetailPage() {
     setProjectArchived,
     saveProjectAsTemplate,
     duplicateProject,
+    deleteProject,
   } = useProjects()
   const { getNotesByProjectSlug } = useNotesContext()
   const project = slug ? getProjectBySlug(slug) : undefined
@@ -118,6 +121,13 @@ export function ProjectDetailPage() {
     ? (stages.find((s) => s.id === selectedStage.id) ?? selectedStage)
     : null
 
+  const trackedSec = getProjectTrackedSeconds(slug)
+  const profitRub = computeProjectProfitRub({
+    amountDisplay: project.amount,
+    employeeHourlyRateRub: project.employeeHourlyRateRub,
+    trackedSeconds: trackedSec,
+  })
+
   return (
     <>
     <main className="relative z-10 mx-auto w-full max-w-[1840px] px-4 pb-16 pt-8 sm:px-10 sm:pt-10">
@@ -126,7 +136,7 @@ export function ProjectDetailPage() {
           <h1 className="text-[clamp(2.5rem,6vw,4rem)] font-light leading-[0.9] tracking-[-0.09em]">
             {project.title}
           </h1>
-          <p className="text-[32px] font-light leading-[0.9] tracking-[-0.09em]">
+          <p className="text-[20px] font-light leading-[0.9] tracking-[-0.09em]">
             {project.client}
           </p>
         </div>
@@ -240,11 +250,14 @@ export function ProjectDetailPage() {
                 <span className="text-ink/65">
                   {' '}
                   · фактическое время:{' '}
-                  {formatDurationRu(getProjectTrackedSeconds(slug))}
+                  {formatDurationRu(trackedSec)}
                 </span>
               </span>
               <span className="shrink-0">{project.progress}%</span>
             </div>
+            <p className="text-[10px] font-light uppercase leading-relaxed tracking-[-0.02em] text-ink/90">
+              профит: {formatRubDots(profitRub)}
+            </p>
           </div>
           {linkedNotes.length > 0 ? (
             <div className="mt-8 border-t border-[rgba(10,10,10,0.15)] pt-6">
@@ -327,6 +340,16 @@ export function ProjectDetailPage() {
         initialForm={projectToForm(project)}
         zClassName="z-[65]"
         clientsForPicker={clients}
+        showDeleteProject
+        onDeleteProject={async () => {
+          const err = await deleteProject(slug)
+          if (err) {
+            window.alert(err.message)
+            return
+          }
+          setProjectEditOpen(false)
+          navigate('/projects', { replace: true })
+        }}
         onClose={() => setProjectEditOpen(false)}
         onSubmit={(data) => {
           updateProject(slug, data)
