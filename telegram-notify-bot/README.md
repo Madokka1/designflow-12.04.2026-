@@ -113,6 +113,10 @@ curl -sS "https://api.telegram.org/bot<BOT_TOKEN>/deleteWebhook"
 - **Привязка `/link` и `/stop`** обрабатываются только в **личном чате** с ботом (в группе игнорируются), чтобы не записать `telegram_chat_id` группы.
 - Код привязки — **32 hex-символа** (как у `randomUUID` без дефисов); иной формат отклоняется без запроса к БД.
 - **`portfolio-notify`**: `verify_jwt = false` на шлюзе; доступ контролируется **`getUser()`** по `Authorization` + чтение `profiles` через service role. Сообщение уходит только на `telegram_chat_id` владельца сессии.
-- **Спам**: лимита вызовов нет; при компрометации JWT злоумышленник мог бы дергать API (как и остальной портфель под этим пользователем). **TELEGRAM_BOT_TOKEN** и **SUPABASE_SERVICE_ROLE_KEY** не попадают в клиент.
+- **Спам / rate limit**: в **`portfolio-notify`** перед вызовом Telegram API действует in-memory лимит **25 отправок на пользователя за 5 минут** на один инстанс (секреты `PORTFOLIO_NOTIFY_MAX_PER_WINDOW`, `PORTFOLIO_NOTIFY_WINDOW_MS`). Пропуски (`skipped`, нет чата) в лимит не входят.
+- **CORS**: по умолчанию `*`. Чтобы сторонний сайт не дергал функцию с украденным токеном из браузера жертвы, задайте секрет **`PORTFOLIO_NOTIFY_CORS_ORIGINS`** (через запятую), например `https://madokkka.ru,https://www.madokkka.ru`. Запросы без заголовка `Origin` (curl, часть нативных клиентов) по-прежнему разрешены.
+- **`verify_jwt = false`**: включать **`verify_jwt = true`** в `config.toml` имеет смысл только если шлюз перестал отдавать «Invalid JWT» при вашем хостинге; иначе оставьте выключенным — эквивалентная проверка уже есть в **`getUser()`**.
+
+**TELEGRAM_BOT_TOKEN** и **SUPABASE_SERVICE_ROLE_KEY** не попадают в клиент.
 
 После правок перезадеплойте **`telegram-webhook`** и при необходимости **`portfolio-notify`**.

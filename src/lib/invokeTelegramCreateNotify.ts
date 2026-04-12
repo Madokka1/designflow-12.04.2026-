@@ -84,6 +84,12 @@ async function explainFunctionsHttpError(err: unknown): Promise<string | null> {
   if (code === 'telegram_api') {
     return `HTTP ${status}: Telegram API отклонил сообщение — проверьте токен бота и привязку чата (/link).`
   }
+  if (code === 'rate_limited') {
+    return `HTTP 429: слишком частые уведомления в Telegram. Подождите несколько минут (лимит задаётся в Edge Function).`
+  }
+  if (code === 'cors') {
+    return `HTTP 403: origin не в списке PORTFOLIO_NOTIFY_CORS_ORIGINS — добавьте URL приложения в секреты функции или очистите список для режима *.`
+  }
   if (code === 'profile') {
     return `HTTP ${status}: не удалось прочитать профиль в БД (RLS или миграции profiles).`
   }
