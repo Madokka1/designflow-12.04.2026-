@@ -19,62 +19,93 @@ const CARD_FALLBACK_TAGS = ['Ожидает оплаты', 'В работе', '�
 
 function StageRow({
   stage,
+  index,
+  total,
   onOpen,
+  onMove,
 }: {
   stage: ProjectStage
+  index: number
+  total: number
   onOpen: (s: ProjectStage) => void
+  onMove: (direction: 'up' | 'down') => void
 }) {
+  const reorderBtn =
+    'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-ink/15 text-sm font-light leading-none text-ink/65 transition-colors hover:bg-ink/[0.04] hover:text-ink disabled:cursor-not-allowed disabled:opacity-25 dark:border-white/20'
+
   return (
-    <button
-      type="button"
-      onClick={() => onOpen(stage)}
-      className="group w-full cursor-pointer text-left outline-none ring-ink transition-[background-color,border-color] duration-200 ease-out hover:bg-ink/[0.02] focus-visible:ring-2"
-    >
-    <div className="flex flex-col gap-6 border border-[rgba(10,10,10,0.4)] p-5 transition-colors group-hover:border-[rgba(10,10,10)] sm:flex-row sm:items-stretch sm:gap-8">
-      <div className="flex min-w-0 flex-1 flex-col gap-5">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-          <span className="text-[10px] font-light uppercase leading-none tracking-[-0.02em]">
-            {stage.status}
-          </span>
-          <span className="text-[10px] font-light uppercase leading-none tracking-[-0.02em]">
-            дедлайн: {stage.deadline}
-          </span>
-        </div>
-        <h3 className="text-[32px] font-light leading-[0.9] tracking-[-0.09em]">
-          {stage.name}
-        </h3>
+    <div className="flex gap-2 sm:gap-3">
+      <div className="flex shrink-0 flex-col justify-center gap-1 py-1">
+        <button
+          type="button"
+          className={reorderBtn}
+          aria-label="Выше в списке"
+          disabled={index <= 0}
+          onClick={() => onMove('up')}
+        >
+          ↑
+        </button>
+        <button
+          type="button"
+          className={reorderBtn}
+          aria-label="Ниже в списке"
+          disabled={index >= total - 1}
+          onClick={() => onMove('down')}
+        >
+          ↓
+        </button>
       </div>
-      <div
-        className={`flex w-full min-w-0 shrink-0 flex-col justify-between gap-4 sm:w-auto sm:max-w-[min(100%,20rem)] sm:items-end ${
-          stage.actualInPill ? 'sm:min-h-[55px]' : 'sm:min-h-[55px]'
-        }`}
+      <button
+        type="button"
+        onClick={() => onOpen(stage)}
+        className="group min-w-0 flex-1 cursor-pointer text-left outline-none ring-ink transition-[background-color,border-color] duration-200 ease-out hover:bg-ink/[0.02] focus-visible:ring-2"
       >
-        <div className="flex w-full flex-col gap-2.5 sm:items-end">
-          {stagePlannedRows(stage.planned).map((line, i) => (
-            <p
-              key={i}
-              className="w-full text-[10px] font-light uppercase leading-relaxed tracking-[-0.02em] text-ink/90 sm:text-right"
-            >
-              {line}
-            </p>
-          ))}
-        </div>
-        {stage.actualInPill ? (
-          <div className="inline-flex rounded-full bg-fill-contrast-bg px-2.5 py-1 text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-fill-contrast-fg">
-            {stage.timeSpentSeconds != null
-              ? `фактическое время: ${formatDurationRu(stage.timeSpentSeconds)}`
-              : stage.actual}
+        <div className="flex flex-col gap-6 border border-[rgba(10,10,10,0.4)] p-5 transition-colors group-hover:border-[rgba(10,10,10)] sm:flex-row sm:items-stretch sm:gap-8">
+          <div className="flex min-w-0 flex-1 flex-col gap-5">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+              <span className="text-[10px] font-light uppercase leading-none tracking-[-0.02em]">
+                {stage.status}
+              </span>
+              <span className="text-[10px] font-light uppercase leading-none tracking-[-0.02em]">
+                дедлайн: {stage.deadline}
+              </span>
+            </div>
+            <h3 className="text-[32px] font-light leading-[0.9] tracking-[-0.09em]">
+              {stage.name}
+            </h3>
           </div>
-        ) : (
-          <p className="text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink sm:text-right">
-            {stage.timeSpentSeconds != null
-              ? `фактическое время: ${formatDurationRu(stage.timeSpentSeconds)}`
-              : stage.actual}
-          </p>
-        )}
-      </div>
+          <div
+            className={`flex w-full min-w-0 shrink-0 flex-col justify-between gap-4 sm:w-auto sm:max-w-[min(100%,20rem)] sm:items-end ${
+              stage.actualInPill ? 'sm:min-h-[55px]' : 'sm:min-h-[55px]'
+            }`}
+          >
+            <div className="flex w-full flex-col gap-2.5 sm:items-end">
+              {stagePlannedRows(stage.planned).map((line, i) => (
+                <p
+                  key={i}
+                  className="w-full text-[10px] font-light uppercase leading-relaxed tracking-[-0.02em] text-ink/90 sm:text-right"
+                >
+                  {line}
+                </p>
+              ))}
+            </div>
+            {stage.actualInPill ? (
+              <div className="inline-flex rounded-full bg-fill-contrast-bg px-2.5 py-1 text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-fill-contrast-fg">
+                {stage.timeSpentSeconds != null
+                  ? `фактическое время: ${formatDurationRu(stage.timeSpentSeconds)}`
+                  : stage.actual}
+              </div>
+            ) : (
+              <p className="text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink sm:text-right">
+                {stage.timeSpentSeconds != null
+                  ? `фактическое время: ${formatDurationRu(stage.timeSpentSeconds)}`
+                  : stage.actual}
+              </p>
+            )}
+          </div>
+        </div>
+      </button>
     </div>
-    </button>
   )
 }
 
@@ -85,6 +116,7 @@ export function ProjectDetailPage() {
     getProjectBySlug,
     addProjectStage,
     removeProjectStage,
+    moveProjectStage,
     updateProjectStage,
     updateProject,
     toggleStageTimer,
@@ -207,8 +239,15 @@ export function ProjectDetailPage() {
             </button>
           </div>
           <div className="flex flex-col gap-5">
-            {stages.map((s) => (
-              <StageRow key={s.id} stage={s} onOpen={setSelectedStage} />
+            {stages.map((s, i) => (
+              <StageRow
+                key={s.id}
+                stage={s}
+                index={i}
+                total={stages.length}
+                onOpen={setSelectedStage}
+                onMove={(dir) => moveProjectStage(slug, s.id, dir)}
+              />
             ))}
           </div>
         </section>
@@ -340,6 +379,7 @@ export function ProjectDetailPage() {
         initialForm={projectToForm(project)}
         zClassName="z-[65]"
         clientsForPicker={clients}
+        stagedPaymentPreviewStages={project.stages}
         showDeleteProject
         onDeleteProject={async () => {
           const err = await deleteProject(slug)

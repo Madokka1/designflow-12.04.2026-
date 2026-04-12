@@ -7,6 +7,17 @@ export function sanitizeDurationInput(raw: string): string {
 }
 
 /**
+ * Во время набора: без `.trim()` в конце, чтобы после часов можно было ввести пробел
+ * перед минутами («1 » → «1 30»). Ведущие пробелы убираем.
+ */
+export function sanitizeDurationInputWhileTyping(raw: string): string {
+  return raw
+    .replace(/[^\d\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/^\s+/, '')
+}
+
+/**
  * Парсит «1», «1 30», «0 30 0» — часы, минуты, секунды.
  * Минуты и секунды ограничены 0–59.
  */

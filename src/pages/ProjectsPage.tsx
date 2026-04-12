@@ -9,10 +9,10 @@ import type { Project } from '../types/project'
 const FILTERS = [
   'Все',
   'Активные',
-  'Архив',
   'Разработка',
   'Поддержка',
   'Личные',
+  'Архив',
 ] as const
 
 const CARD_FALLBACK_TAGS = ['Ожидает оплаты', 'В работе', 'Разработка'] as const

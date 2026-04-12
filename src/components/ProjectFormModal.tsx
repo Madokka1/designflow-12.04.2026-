@@ -7,12 +7,15 @@ import {
   formInputUnderlineClass,
   modalEdgeBorderClass,
 } from '../lib/formInputClasses'
+import { formatRubDots } from '../lib/parseAmountRub'
+import { sumStageCostsRub } from '../lib/stageCostSum'
 import {
   PROJECT_PAYMENT_STATUSES,
   PROJECT_SECTIONS,
   PROJECT_STATUSES,
   type CreateProjectForm,
 } from '../types/projectForm'
+import type { ProjectStage } from '../types/project'
 import type { WorkspaceClient } from '../types/workspaceClient'
 
 type Props = {
@@ -33,6 +36,11 @@ type Props = {
   /** Редактирование: показать опасную зону «Удалить проект». */
   showDeleteProject?: boolean
   onDeleteProject?: () => void | Promise<void>
+  /**
+   * Этапы для предпросмотра суммы при «поэтапная оплата» (редактирование проекта или шаблон при создании).
+   * Без пропа считается как пустой список.
+   */
+  stagedPaymentPreviewStages?: readonly ProjectStage[]
 }
 
 function ChipRow<T extends string>({
@@ -79,6 +87,7 @@ export function ProjectFormModal({
   templateSelect,
   showDeleteProject,
   onDeleteProject,
+  stagedPaymentPreviewStages,
 }: Props) {
   const titleId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
@@ -219,16 +228,34 @@ export function ProjectFormModal({
                     onChange={(e) => update('client', e.target.value)}
                   />
                 </label>
-                <label className="block">
-                  <span className="sr-only">Стоимость проекта</span>
-                  <CostRubInput
-                    inputClass={inputClass}
-                    placeholder="Только цифры, напр. 10000"
-                    aria-label="Стоимость проекта"
-                    valueDigits={form.cost}
-                    onChangeDigits={(d) => update('cost', d)}
-                  />
-                </label>
+                {form.paymentStatus === 'поэтапная оплата' ? (
+                  <div className="block">
+                    <span className="mb-1 block text-[10px] font-light uppercase tracking-[-0.02em] text-ink/55">
+                      Стоимость проекта
+                    </span>
+                    <p className="border-b border-[var(--color-form-border)] py-2.5 text-base font-light leading-[0.9] tracking-[-0.04em] text-ink">
+                      {formatRubDots(
+                        sumStageCostsRub(stagedPaymentPreviewStages ?? []),
+                      )}
+                    </p>
+                    <p className="mt-1.5 text-xs font-light leading-snug tracking-[-0.02em] text-ink/55">
+                      Сумма только по этапам со статусом оплаты «оплачено»; при
+                      сохранении и при изменении этапов пересчитывается
+                      автоматически.
+                    </p>
+                  </div>
+                ) : (
+                  <label className="block">
+                    <span className="sr-only">Стоимость проекта</span>
+                    <CostRubInput
+                      inputClass={inputClass}
+                      placeholder="Только цифры, напр. 10000"
+                      aria-label="Стоимость проекта"
+                      valueDigits={form.cost}
+                      onChangeDigits={(d) => update('cost', d)}
+                    />
+                  </label>
+                )}
                 <label className="block">
                   <span className="mb-1 block text-[10px] font-light uppercase tracking-[-0.02em] text-ink/55">
                     Стоимость часа сотрудника (руб/ч)

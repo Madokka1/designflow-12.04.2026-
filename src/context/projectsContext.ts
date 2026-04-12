@@ -43,6 +43,12 @@ export type ProjectsContextValue = {
     data: CreateStageForm,
   ) => void
   removeProjectStage: (projectSlug: string, stageId: string) => void
+  /** Поменять этап местами с соседом (порядок в массиве = порядок в UI и в Supabase sort_order). */
+  moveProjectStage: (
+    projectSlug: string,
+    stageId: string,
+    direction: 'up' | 'down',
+  ) => void
   getProjectBySlug: (slug: string) => Project | undefined
   setProjectArchived: (projectSlug: string, archived: boolean) => void
   saveProjectAsTemplate: (projectSlug: string, templateName: string) => void

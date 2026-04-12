@@ -128,17 +128,23 @@ export function FinancePage() {
       else transactionNet -= tx.amountRub
     }
 
-    /** Итог «Оборот» / «Анализ»: оплаченные проекты + чистый поток по транзакциям (как на главной) */
-    const total = paidProjectsSum + transactionNet
+    /**
+     * Итог «Оборот» / «Анализ»: полностью оплаченные проекты + уже полученная сумма
+     * по поэтапной оплате (поле amount у таких проектов = оплаченные этапы) + транзакции.
+     */
+    const total = paidProjectsSum + amt.staged + transactionNet
 
     const pct = (part: number) =>
       allProjectsSum > 0 ? Math.round((part / allProjectsSum) * 100) : 0
 
-    const analysisAwaiting = amt.awaiting + amt.staged
+    /** В анализе «получено»: оплачено целиком + оплаченные этапы; «ожидает» — без поэтапки */
+    const analysisReceived = amt.paid + amt.staged
+    const analysisAwaitingOnly = amt.awaiting
 
     return {
       /** Сумма по проектам с тегом «оплачено» (для подписи к обороту) */
       paidProjectsSum,
+      stagedReceivedSum: amt.staged,
       transactionNet,
       total,
       amt,
@@ -148,8 +154,8 @@ export function FinancePage() {
       pctAwait: pct(amt.awaiting),
       pctStaged: pct(amt.staged),
       pctPersonal: pct(amt.personal),
-      analysisPaidPct: pct(amt.paid),
-      analysisAwaitPct: pct(analysisAwaiting),
+      analysisPaidPct: pct(analysisReceived),
+      analysisAwaitPct: pct(analysisAwaitingOnly),
       analysisPersonalPct: pct(amt.personal),
     }
   }, [projects, financeTransactions])
@@ -195,11 +201,30 @@ export function FinancePage() {
               <p className="text-[clamp(1.75rem,4vw,2rem)] font-light leading-[0.9] tracking-[-0.09em]">
                 {formatRubDots(stats.total)}
               </p>
-              {stats.transactionNet !== 0 ? (
+              {stats.transactionNet !== 0 || stats.stagedReceivedSum > 0 ? (
                 <p className="text-sm font-light leading-snug tracking-[-0.02em] text-ink/55">
-                  Оплачено по проектам {formatRubDots(stats.paidProjectsSum)}
-                  {stats.transactionNet > 0 ? ' · +' : ' · '}
-                  {formatRubDots(stats.transactionNet)} по транзакциям
+                  {stats.paidProjectsSum > 0 ? (
+                    <>
+                      Оплачено по проектам{' '}
+                      {formatRubDots(stats.paidProjectsSum)}
+                    </>
+                  ) : null}
+                  {stats.stagedReceivedSum > 0 ? (
+                    <>
+                      {stats.paidProjectsSum > 0 ? ' · ' : null}
+                      Оплата за этапы{' '}
+                      {formatRubDots(stats.stagedReceivedSum)}
+                    </>
+                  ) : null}
+                  {stats.transactionNet !== 0 ? (
+                    <>
+                      {(stats.paidProjectsSum > 0 ||
+                        stats.stagedReceivedSum > 0) &&
+                      ' · '}
+                      {stats.transactionNet > 0 ? '+' : ''}
+                      {formatRubDots(stats.transactionNet)} по транзакциям
+                    </>
+                  ) : null}
                 </p>
               ) : null}
               <p className="text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink/80">
@@ -373,7 +398,7 @@ export function FinancePage() {
             <div className="flex flex-row flex-wrap gap-5 text-[10px] font-light uppercase leading-none tracking-[-0.02em]">
               <span className="inline-flex items-center gap-1.5">
                 <span className="inline-block h-[5px] w-5 rounded-sm bg-ink" />
-                Оплачено
+                Оплачено и этапы
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <span className="inline-block h-[5px] w-5 rounded-sm bg-ink opacity-40" />

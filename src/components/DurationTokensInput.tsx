@@ -2,6 +2,7 @@ import {
   formatDurationTokensForInput,
   parseDurationTokensLoose,
   sanitizeDurationInput,
+  sanitizeDurationInputWhileTyping,
 } from '../lib/durationTokens'
 
 type Props = {
@@ -25,10 +26,12 @@ export function DurationTokensInput({
       className={inputClass}
       placeholder={placeholder ?? '0 30 0'}
       aria-label={ariaLabel}
-      inputMode="numeric"
+      inputMode="text"
       autoComplete="off"
       value={value}
-      onChange={(e) => onChange(sanitizeDurationInput(e.target.value))}
+      onChange={(e) =>
+        onChange(sanitizeDurationInputWhileTyping(e.target.value))
+      }
       onBlur={() => {
         const trimmed = sanitizeDurationInput(value)
         if (!trimmed) {

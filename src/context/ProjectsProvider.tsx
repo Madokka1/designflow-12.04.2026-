@@ -33,6 +33,11 @@ import {
   replaceTimerSessionLog,
 } from '../lib/timerSessionsStorage'
 import { cloneStagesWithNewIds } from '../lib/cloneStages'
+import { projectProgressPercentFromStages } from '../lib/projectProgressFromStages'
+import {
+  sumStageCostsRub,
+  syncStagedProjectAmount,
+} from '../lib/stageCostSum'
 import { mergeProjectsBySlug, mergeRecordsById } from '../lib/portfolioMerge'
 import {
   deleteClientRemote,
@@ -65,14 +70,31 @@ import type { WorkspaceClient } from '../types/workspaceClient'
 import type { WorkspaceTask } from '../types/workspaceTask'
 import { ProjectsContext, type RunningStageTimer } from './projectsContext'
 
+/** Сумма по этапам (поэтапная оплата) + прогресс по завершённым этапам. */
+function refreshProjectDerived(p: Project): Project {
+  const s = syncStagedProjectAmount(p)
+  return { ...s, progress: projectProgressPercentFromStages(s.stages) }
+}
+
+function mapSyncStagedProjects(projects: readonly Project[]): Project[] {
+  return projects.map(refreshProjectDerived)
+}
+
 function formToProject(
   data: CreateProjectForm,
   id: string,
   slug: string,
+  stagesFromTemplate?: readonly ProjectStage[],
 ): Project {
   const title = data.title.trim() || 'Название проекта'
   const client = data.client.trim() || 'Клиент'
-  const rub = parseAmountRub(data.cost)
+  const stages = stagesFromTemplate?.length
+    ? cloneStagesWithNewIds(stagesFromTemplate)
+    : cloneStagesWithNewIds(DEFAULT_PROJECT_STAGES)
+  const rub =
+    data.paymentStatus === 'поэтапная оплата'
+      ? sumStageCostsRub(stages)
+      : parseAmountRub(data.cost)
   const amount = formatRubDots(rub)
   const deadline = normalizeDeadlineStored(data.deadline)
   const tags = [
@@ -89,9 +111,9 @@ function formToProject(
     client,
     amount,
     deadline,
-    progress: 0,
+    progress: projectProgressPercentFromStages(stages),
     tags,
-    stages: cloneStagesWithNewIds(DEFAULT_PROJECT_STAGES),
+    stages,
     comment: data.comment.trim() || undefined,
     archived: false,
     clientId: cid ? cid : null,
@@ -102,7 +124,10 @@ function formToProject(
 function applyProjectForm(p: Project, data: CreateProjectForm): Project {
   const title = data.title.trim() || 'Название проекта'
   const client = data.client.trim() || 'Клиент'
-  const rub = parseAmountRub(data.cost)
+  const rub =
+    data.paymentStatus === 'поэтапная оплата'
+      ? sumStageCostsRub(p.stages)
+      : parseAmountRub(data.cost)
   const amount = formatRubDots(rub)
   const deadline = normalizeDeadlineStored(data.deadline)
   const tags = [
@@ -118,6 +143,7 @@ function applyProjectForm(p: Project, data: CreateProjectForm): Project {
     client,
     amount,
     deadline,
+    progress: projectProgressPercentFromStages(p.stages),
     tags: [...tags],
     comment: data.comment.trim() || undefined,
     clientId: cid ? cid : null,
@@ -309,7 +335,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
   )
 
   const replacePortfolioData = useCallback((payload: PortfolioBundle) => {
-    setProjects(payload.projects)
+    setProjects(mapSyncStagedProjects(payload.projects))
     setFinanceTransactions(payload.financeTransactions)
     setCalendarCustomEvents(payload.calendarCustomEvents)
     setClients(payload.clients ?? [])
@@ -318,7 +344,9 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const mergePortfolioData = useCallback((payload: PortfolioBundle) => {
-    setProjects((prev) => mergeProjectsBySlug(prev, payload.projects))
+    setProjects((prev) =>
+      mapSyncStagedProjects(mergeProjectsBySlug(prev, payload.projects)),
+    )
     setFinanceTransactions((prev) =>
       mergeRecordsById(prev, payload.financeTransactions),
     )
@@ -382,7 +410,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     void fetchPortfolioBundle(client, userId)
       .then((bundle) => {
         if (cancelled) return
-        setProjects(bundle.projects)
+        setProjects(mapSyncStagedProjects(bundle.projects))
         setFinanceTransactions(bundle.financeTransactions)
         setCalendarCustomEvents(bundle.calendarCustomEvents)
         setClients(bundle.clients ?? [])
@@ -716,13 +744,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
           typeof crypto !== 'undefined' && crypto.randomUUID
             ? crypto.randomUUID()
             : `p-${Date.now()}`
-        let newP = formToProject(data, id, slug)
-        if (options?.stages?.length) {
-          newP = {
-            ...newP,
-            stages: cloneStagesWithNewIds(options.stages),
-          }
-        }
+        const newP = formToProject(data, id, slug, options?.stages)
         if (client && userId && !readOnly) {
           setPortfolioSync({ kind: 'saving' })
           void upsertProjectToSupabase(client, userId, newP).then((res) => {
@@ -773,14 +795,14 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         ...s,
         timeSpentSeconds: undefined,
       }))
-      const newP: Project = {
+      const newP = refreshProjectDerived({
         ...p,
         id,
         slug,
         title,
         stages,
         archived: false,
-      }
+      })
       setProjects((list) => [newP, ...list])
       if (client && userId && !readOnly) {
         setPortfolioSync({ kind: 'saving' })
@@ -1106,16 +1128,16 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
             typeof crypto !== 'undefined' && crypto.randomUUID
               ? crypto.randomUUID()
               : `st-${Date.now()}`
-          return {
+          return refreshProjectDerived({
             ...p,
             stages: [
-              ...base,
               {
                 ...formToStage(data, id),
                 addedAt: new Date().toISOString(),
               },
+              ...base,
             ],
-          }
+          })
         }),
       )
       schedulePersistProject(projectSlug)
@@ -1129,6 +1151,29 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     [client, userId, readOnly, schedulePersistProject],
   )
 
+  const moveProjectStage = useCallback(
+    (projectSlug: string, stageId: string, direction: 'up' | 'down') => {
+      setProjects((prev) =>
+        prev.map((p) => {
+          if (p.slug !== projectSlug) return p
+          const base = [...(p.stages ?? DEFAULT_PROJECT_STAGES)]
+          const idx = base.findIndex((s) => s.id === stageId)
+          if (idx === -1) return p
+          const j = direction === 'up' ? idx - 1 : idx + 1
+          if (j < 0 || j >= base.length) return p
+          const a = base[idx]
+          const b = base[j]
+          if (!a || !b) return p
+          base[idx] = b
+          base[j] = a
+          return refreshProjectDerived({ ...p, stages: base })
+        }),
+      )
+      schedulePersistProject(projectSlug)
+    },
+    [schedulePersistProject],
+  )
+
   const updateProjectStage = useCallback(
     (projectSlug: string, stageId: string, data: CreateStageForm) => {
       setProjects((prev) =>
@@ -1138,7 +1183,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
           const idx = base.findIndex((s) => s.id === stageId)
           if (idx === -1) return p
           base[idx] = applyStageForm(data, base[idx])
-          return { ...p, stages: base }
+          return refreshProjectDerived({ ...p, stages: base })
         }),
       )
       schedulePersistProject(projectSlug)
@@ -1158,7 +1203,10 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         prev.map((p) => {
           if (p.slug !== projectSlug) return p
           const base = [...(p.stages ?? DEFAULT_PROJECT_STAGES)]
-          return { ...p, stages: base.filter((s) => s.id !== stageId) }
+          return refreshProjectDerived({
+            ...p,
+            stages: base.filter((s) => s.id !== stageId),
+          })
         }),
       )
       schedulePersistProject(projectSlug)
@@ -1179,6 +1227,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       addProjectStage,
       updateProjectStage,
       removeProjectStage,
+      moveProjectStage,
       getProjectBySlug,
       setProjectArchived,
       saveProjectAsTemplate,
@@ -1226,6 +1275,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       addProjectStage,
       updateProjectStage,
       removeProjectStage,
+      moveProjectStage,
       getProjectBySlug,
       setProjectArchived,
       saveProjectAsTemplate,

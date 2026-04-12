@@ -22,6 +22,11 @@ export function CreateProjectModal({
   const emptyForm = useMemo(() => defaultProjectForm(), [])
   const [templateId, setTemplateId] = useState('')
 
+  const stagedPreviewStages = useMemo(() => {
+    if (!templateId) return undefined
+    return templates.find((t) => t.id === templateId)?.stages
+  }, [templateId, templates])
+
   return (
     <ProjectFormModal
       title="Создать проект"
@@ -29,6 +34,7 @@ export function CreateProjectModal({
       initialForm={emptyForm}
       zClassName="z-50"
       clientsForPicker={clients}
+      stagedPaymentPreviewStages={stagedPreviewStages}
       templateSelect={
         templates.length > 0
           ? {
