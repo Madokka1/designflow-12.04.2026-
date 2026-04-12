@@ -3,3 +3,11 @@
 
 [functions.telegram-webhook]
 verify_jwt = false
+
+# Проверка пользователя внутри функции (getUser + Bearer). На шлюзе JWT иногда даёт
+# 401 «Invalid JWT» при рабочей сессии в приложении (домен/ключ/обновление токена).
+[functions.portfolio-notify]
+verify_jwt = false
+
+[functions.telegram-send]
+verify_jwt = false

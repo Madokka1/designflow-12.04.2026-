@@ -32,6 +32,14 @@ const supabase = createClient(SUPABASE_URL, SERVICE_KEY, {
 
 const bot = new Telegraf(BOT_TOKEN)
 
+function requirePrivateChat(ctx: Context): boolean {
+  if (ctx.chat?.type !== 'private') {
+    void ctx.reply('Команда доступна только в личном чате с ботом (не в группе).')
+    return false
+  }
+  return true
+}
+
 /** Привязка чата к пользователю по одноразовому токену из приложения. */
 async function processLinkToken(ctx: Context, tokenRaw: string): Promise<void> {
   const token = tokenRaw.trim()
@@ -40,8 +48,12 @@ async function processLinkToken(ctx: Context, tokenRaw: string): Promise<void> {
     await ctx.reply('Не удалось определить пользователя Telegram.')
     return
   }
-  if (!token) {
-    await ctx.reply('Код пустой. Откройте приложение → Настройки и получите код или ссылку.')
+  if (!/^[a-f0-9]{32}$/i.test(token)) {
+    await ctx.reply(
+      token.length === 0
+        ? 'Код пустой. Откройте приложение → Настройки и получите код или ссылку.'
+        : 'Неверный формат кода. Скопируйте код из приложения целиком.',
+    )
     return
   }
 
@@ -159,6 +171,7 @@ async function runDeadlineNotifications(): Promise<void> {
 }
 
 bot.start(async (ctx) => {
+  if (!requirePrivateChat(ctx)) return
   const payload = (ctx.startPayload ?? '').trim()
   const from = ctx.from
   if (!from) {
@@ -187,6 +200,7 @@ bot.start(async (ctx) => {
 })
 
 bot.command('link', async (ctx) => {
+  if (!requirePrivateChat(ctx)) return
   const text =
     ctx.message && 'text' in ctx.message ? ctx.message.text.trim() : ''
   const arg = text.replace(/^\/link(@[A-Za-z0-9_]+)?\s*/i, '').trim()
@@ -203,6 +217,7 @@ bot.command('link', async (ctx) => {
 })
 
 bot.command('stop', async (ctx) => {
+  if (!requirePrivateChat(ctx)) return
   const from = ctx.from
   if (!from) return
   const { error } = await supabase

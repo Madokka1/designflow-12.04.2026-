@@ -67,7 +67,7 @@
    ```
    В ответе должны быть `url` на `.../telegram-webhook` и `has_custom_certificate: false`.
 
-8. **Уведомления о создании** (проекты, этапы, клиенты, задачи): выполните миграцию **`007_telegram_notify_creates.sql`**, затем задеплойте функцию:
+8. **Уведомления о создании** (проекты, этапы, клиенты, задачи): выполните миграцию **`007_telegram_notify_creates.sql`**, затем задеплойте функцию (подхватится `supabase/config.toml` с `verify_jwt = false` для `portfolio-notify`, иначе шлюз иногда отвечает 401 Invalid JWT при нормальной сессии):
    ```bash
    supabase functions deploy portfolio-notify
    ```
@@ -108,4 +108,11 @@ curl -sS "https://api.telegram.org/bot<BOT_TOKEN>/deleteWebhook"
 ## Безопасность
 
 - **Service role** только в секретах Edge Function или на сервере воркера, не во фронтенде.
-- `TELEGRAM_WEBHOOK_SECRET` обязателен в проде: Telegram пришлёт его в заголовке, функция отклонит чужие POST.
+- **`TELEGRAM_WEBHOOK_SECRET`** обязателен: без него `telegram-webhook` отвечает **403** (чужой POST не обработает). Для локального `supabase functions serve` можно задать секрет `ALLOW_INSECURE_TELEGRAM_WEBHOOK=1` (только отладка).
+- В `setWebhook` передавайте тот же секрет в `secret_token` — Telegram шлёт его в заголовке `x-telegram-bot-api-secret-token`.
+- **Привязка `/link` и `/stop`** обрабатываются только в **личном чате** с ботом (в группе игнорируются), чтобы не записать `telegram_chat_id` группы.
+- Код привязки — **32 hex-символа** (как у `randomUUID` без дефисов); иной формат отклоняется без запроса к БД.
+- **`portfolio-notify`**: `verify_jwt = false` на шлюзе; доступ контролируется **`getUser()`** по `Authorization` + чтение `profiles` через service role. Сообщение уходит только на `telegram_chat_id` владельца сессии.
+- **Спам**: лимита вызовов нет; при компрометации JWT злоумышленник мог бы дергать API (как и остальной портфель под этим пользователем). **TELEGRAM_BOT_TOKEN** и **SUPABASE_SERVICE_ROLE_KEY** не попадают в клиент.
+
+После правок перезадеплойте **`telegram-webhook`** и при необходимости **`portfolio-notify`**.

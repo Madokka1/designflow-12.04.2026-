@@ -72,10 +72,12 @@ async function processLinkToken(
   tokenRaw: string,
 ): Promise<void> {
   const token = tokenRaw.trim()
-  if (!token) {
+  if (!/^[a-f0-9]{32}$/i.test(token)) {
     await sendTelegramMessage(
       chatId,
-      'Код пустой. Откройте приложение → Настройки и получите код.',
+      token.length === 0
+        ? 'Код пустой. Откройте приложение → Настройки и получите код.'
+        : 'Неверный формат кода. Скопируйте код из приложения (Настройки → Telegram) целиком.',
     )
     return
   }
@@ -158,6 +160,14 @@ Deno.serve(async (req) => {
   }
 
   const webhookSecret = Deno.env.get('TELEGRAM_WEBHOOK_SECRET')?.trim()
+  const allowInsecureWebhook =
+    Deno.env.get('ALLOW_INSECURE_TELEGRAM_WEBHOOK') === '1'
+  if (!webhookSecret && !allowInsecureWebhook) {
+    console.error(
+      'TELEGRAM_WEBHOOK_SECRET не задан. Для локальной отладки: ALLOW_INSECURE_TELEGRAM_WEBHOOK=1',
+    )
+    return new Response('forbidden', { status: 403, headers: corsHeaders })
+  }
   if (webhookSecret) {
     const got = req.headers.get('x-telegram-bot-api-secret-token') ?? ''
     if (got !== webhookSecret) {
@@ -190,6 +200,9 @@ Deno.serve(async (req) => {
 
   const chatId = msg.chat.id
   const from = msg.from
+  if (msg.chat.type !== 'private') {
+    return json({ ok: true })
+  }
   if (!from) {
     await sendTelegramMessage(chatId, 'Не удалось определить пользователя.')
     return json({ ok: true })

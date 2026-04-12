@@ -34,7 +34,9 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')?.trim()
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY')?.trim()
-  const serviceKey = Deno.env.get('SERVICE_ROLE_KEY')?.trim()
+  const serviceKey =
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim() ||
+    Deno.env.get('SERVICE_ROLE_KEY')?.trim()
   const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')?.trim()
 
   if (!supabaseUrl || !anonKey || !serviceKey || !botToken) {
