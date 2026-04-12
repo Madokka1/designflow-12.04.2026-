@@ -1,4 +1,4 @@
--- Уведомления в Telegram при создании сущностей (фронт вызывает Edge Function telegram-send).
+-- Уведомления в Telegram при создании сущностей (фронт вызывает Edge Function portfolio-notify).
 
 alter table public.profiles
   add column if not exists telegram_notify_creates_enabled boolean not null default true;

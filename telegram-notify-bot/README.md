@@ -2,7 +2,21 @@
 
 **Один бот на всех пользователей:** в `profiles` у каждого свой `telegram_chat_id`.
 
-## Почему бот «молчит» в Telegram
+## Чеклист: не приходят уведомления о проектах / этапах / задачах
+
+1. **Привязка чата** — в приложении Настройки → Telegram статус **«привязан»**, в боте было **«Бот привязан»** после `/link` или Start.
+2. **Галочка** — включено **«Уведомлять в Telegram о новых…»**; после смены подождите ~1 с (запись в `profiles`).
+3. **Edge Function `portfolio-notify`** — выполнена миграция **`007_telegram_notify_creates.sql`**, функция задеплоена: `supabase functions deploy portfolio-notify`.
+4. **Секреты** у функции: `TELEGRAM_BOT_TOKEN`, `SUPABASE_SERVICE_ROLE_KEY` (и при необходимости уже подставляемые `SUPABASE_URL` / `SUPABASE_ANON_KEY`).
+5. В приложении нажмите **«Проверить уведомление»** (Настройки → Telegram) — там показывается текстовая подсказка по ошибке; в консоли (F12) смотрите `[portfolio-notify]`.
+
+**Ошибка `FunctionsFetchError` / «Failed to send a request»** — чаще всего блокировщик рекламы (uBlock и т.п.) режет URL с `telegram` в пути; приложение вызывает **`portfolio-notify`** именно поэтому. Отключите блокировщик для вашего домена с приложением или задеплойте `portfolio-notify`. Если у вас в облаке осталась только старая функция **`telegram-send`**, приложение само сделает второй запрос к ней (после 404 на `portfolio-notify`).
+
+**Напоминания о дедлайнах** шлются **отдельно** — только процессом `telegram-notify-bot` (cron), не через Edge Function уведомлений о создании.
+
+---
+
+## Почему бот «молчит» на команды /link
 
 Пока **нет сервера**, который принимает запросы от Telegram, сообщения никуда не уходят: ни `/start`, ни `/link` не обработаются.
 
@@ -55,9 +69,9 @@
 
 8. **Уведомления о создании** (проекты, этапы, клиенты, задачи): выполните миграцию **`007_telegram_notify_creates.sql`**, затем задеплойте функцию:
    ```bash
-   supabase functions deploy telegram-send
+   supabase functions deploy portfolio-notify
    ```
-   Нужны те же секреты, что для webhook (`TELEGRAM_BOT_TOKEN`, `SUPABASE_SERVICE_ROLE_KEY` и т.д.); `SUPABASE_URL` и `SUPABASE_ANON_KEY` подставляются при деплое. В приложении в Настройках включите «Уведомлять в Telegram о новых…».
+   Нужны те же секреты, что для webhook (`TELEGRAM_BOT_TOKEN`, `SUPABASE_SERVICE_ROLE_KEY` и т.д.); `SUPABASE_URL` и `SUPABASE_ANON_KEY` подставляются при деплое. В приложении в Настройках включите «Уведомлять в Telegram о новых…». (Раньше функция называлась `telegram-send` — можно оставить только её в Supabase: клиент попробует `portfolio-notify`, при 404 вызовет `telegram-send`.)
 
 После этого отправьте боту `/link` с кодом из приложения — должен прийти ответ **«Бот привязан»**.
 

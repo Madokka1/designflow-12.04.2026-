@@ -38,6 +38,7 @@ import { useProjects } from '../hooks/useProjects'
 import { useSettings } from '../hooks/useSettings'
 import { PageTabButton, PageTabList } from '../components/PageTabs'
 import { formInputUnderlineClass } from '../lib/formInputClasses'
+import { invokeTelegramCreateNotify } from '../lib/invokeTelegramCreateNotify'
 import {
   createTelegramLinkToken,
   unlinkTelegramFromProfile,
@@ -155,6 +156,7 @@ export function SettingsPage() {
   >('idle')
   const [telegramUiHint, setTelegramUiHint] = useState<string | null>(null)
   const [telegramLinkBusy, setTelegramLinkBusy] = useState(false)
+  const [telegramTestBusy, setTelegramTestBusy] = useState(false)
   /** Последний выданный код; можно вставить в бота: /link КОД */
   const [telegramPairCode, setTelegramPairCode] = useState<string | null>(null)
   const telegramLinkPollRef = useRef<number | null>(null)
@@ -1133,9 +1135,63 @@ export function SettingsPage() {
                 <span className="text-sm font-light text-ink/70">
                   Уведомлять в Telegram о новых проектах, этапах, клиентах и задачах (нужны
                   привязанный чат и Edge Function{' '}
-                  <code className="text-xs text-ink/85">telegram-send</code>).
+                  <code className="text-xs text-ink/85">portfolio-notify</code>).
                 </span>
               </label>
+              <div className="mt-2">
+                <button
+                  type="button"
+                  className="h-9 rounded-full border border-card-border px-4 text-sm font-light disabled:opacity-45"
+                  disabled={
+                    !client ||
+                    !session?.user?.id ||
+                    settings.readOnlyMode ||
+                    telegramTestBusy
+                  }
+                  onClick={async () => {
+                    if (!client) return
+                    setTelegramTestBusy(true)
+                    setTelegramUiHint(null)
+                    try {
+                      const r = await invokeTelegramCreateNotify(
+                        client,
+                        'Проверка DesignFlow: если вы видите это сообщение, уведомления работают.',
+                      )
+                      if (!r.ok) {
+                        setTelegramUiHint(
+                          `Ошибка Edge Function: ${r.error}. Задеплойте portfolio-notify и секреты (см. telegram-notify-bot/README.md), откройте консоль (F12).`,
+                        )
+                        return
+                      }
+                      if ('skipped' in r) {
+                        if (r.reason === 'creates_disabled') {
+                          setTelegramUiHint(
+                            'Отправка отменена: включите галочку «Уведомлять в Telegram о новых…» выше и подождите ~1 с (сохранение в профиль).',
+                          )
+                          return
+                        }
+                        if (r.reason === 'invalid_chat') {
+                          setTelegramUiHint(
+                            'В профиле некорректный chat_id. Отвяжите Telegram и привяжите снова через /link.',
+                          )
+                          return
+                        }
+                        setTelegramUiHint(
+                          'Сообщение не отправлено: чат не привязан. Статус «не привязан» — нажмите «Получить код и открыть бота».',
+                        )
+                        return
+                      }
+                      setTelegramUiHint(
+                        'Тестовое сообщение отправлено — проверьте чат с ботом в Telegram.',
+                      )
+                    } finally {
+                      setTelegramTestBusy(false)
+                    }
+                  }}
+                >
+                  {telegramTestBusy ? 'Отправка…' : 'Проверить уведомление'}
+                </button>
+              </div>
             </div>
 
             <Field label="Автовыход при простое (минуты, 0 — не выходить)">

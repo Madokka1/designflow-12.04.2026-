@@ -1,6 +1,6 @@
 /**
  * Отправка сообщения в Telegram текущему пользователю (по profiles.telegram_chat_id).
- * Вызывается из приложения с JWT; токен бота только в секретах.
+ * Имя функции без «telegram» в URL — иначе часть блокировщиков режет fetch из браузера.
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 
@@ -34,11 +34,11 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')?.trim()
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY')?.trim()
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim()
+  const serviceKey = Deno.env.get('SERVICE_ROLE_KEY')?.trim()
   const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')?.trim()
 
   if (!supabaseUrl || !anonKey || !serviceKey || !botToken) {
-    console.error('telegram-send: missing env')
+    console.error('portfolio-notify: missing env')
     return new Response(JSON.stringify({ error: 'server_misconfigured' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -101,20 +101,35 @@ Deno.serve(async (req) => {
 
   const chatId = profile?.telegram_chat_id
   const enabled = profile?.telegram_notify_creates_enabled !== false
-  if (chatId == null || !enabled) {
-    return new Response(JSON.stringify({ ok: true, skipped: true }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+  if (!enabled) {
+    return new Response(
+      JSON.stringify({ ok: true, skipped: true, reason: 'creates_disabled' }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      },
+    )
+  }
+  if (chatId == null) {
+    return new Response(
+      JSON.stringify({ ok: true, skipped: true, reason: 'no_chat' }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      },
+    )
   }
 
   const chat =
     typeof chatId === 'string' ? Number(chatId.trim()) : Number(chatId)
   if (!Number.isFinite(chat)) {
-    return new Response(JSON.stringify({ ok: true, skipped: true }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    return new Response(
+      JSON.stringify({ ok: true, skipped: true, reason: 'invalid_chat' }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      },
+    )
   }
 
   const tgRes = await fetch(
@@ -128,7 +143,7 @@ Deno.serve(async (req) => {
 
   if (!tgRes.ok) {
     const errText = await tgRes.text()
-    console.error('[telegram-send]', tgRes.status, errText)
+    console.error('[portfolio-notify]', tgRes.status, errText)
     return new Response(JSON.stringify({ error: 'telegram_api' }), {
       status: 502,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
