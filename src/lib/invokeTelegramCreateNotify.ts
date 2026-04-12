@@ -42,6 +42,49 @@ function formatInvokeError(err: unknown): string {
   return base
 }
 
+/** Тело ответа Edge Function при 4xx/5xx (FunctionsHttpError.context — Response). */
+async function explainFunctionsHttpError(err: unknown): Promise<string | null> {
+  if (!err || typeof err !== 'object') return null
+  const e = err as { name?: string; context?: unknown }
+  if (e.name !== 'FunctionsHttpError') return null
+  const res = e.context
+  if (!(res instanceof Response)) return null
+  const status = res.status
+  let raw = ''
+  try {
+    raw = (await res.clone().text()).trim()
+  } catch {
+    return `HTTP ${status}`
+  }
+  if (!raw) return `HTTP ${status}`
+
+  let code: string | undefined
+  try {
+    const j = JSON.parse(raw) as { error?: string; message?: string }
+    code = j.error ?? j.message
+  } catch {
+    /* не JSON */
+  }
+
+  if (code === 'server_misconfigured') {
+    return `HTTP ${status}: не заданы секреты функции. В Supabase: Project Settings → Edge Functions → Secrets: TELEGRAM_BOT_TOKEN, SUPABASE_SERVICE_ROLE_KEY. Затем снова deploy portfolio-notify.`
+  }
+  if (code === 'unauthorized') {
+    return `HTTP ${status}: сессия недействительна — выйдите и войдите снова.`
+  }
+  if (code === 'telegram_api') {
+    return `HTTP ${status}: Telegram API отклонил сообщение — проверьте токен бота и привязку чата (/link).`
+  }
+  if (code === 'profile') {
+    return `HTTP ${status}: не удалось прочитать профиль в БД (RLS или миграции profiles).`
+  }
+  if (code) {
+    return `HTTP ${status}: ${code}`
+  }
+  const short = raw.length > 280 ? `${raw.slice(0, 280)}…` : raw
+  return `HTTP ${status}: ${short}`
+}
+
 function isEdgeFunctionNotFound(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false
   const e = error as { name?: string; context?: unknown }
@@ -70,11 +113,15 @@ async function invokeNotifyOnce(
   return client.functions.invoke(fnName, { body: { text } })
 }
 
-function handleInvokeFailure(
+async function handleInvokeFailure(
   fnName: string,
   error: unknown,
-): TelegramCreateNotifyResult {
-  const msg = formatInvokeError(error)
+): Promise<TelegramCreateNotifyResult> {
+  let msg = formatInvokeError(error)
+  const httpHint = await explainFunctionsHttpError(error)
+  if (httpHint) {
+    msg = `${msg} — ${httpHint}`
+  }
   const isFetch =
     typeof error === 'object' &&
     error !== null &&
@@ -123,7 +170,7 @@ export async function invokeTelegramCreateNotify(
     }
 
     if (error) {
-      return handleInvokeFailure(fn, error)
+      return await handleInvokeFailure(fn, error)
     }
 
     const parsed = parseNotifyResponse(data)
