@@ -31,11 +31,11 @@ function NoteCard({
   const attached = note.attachedProjectSlugs ?? []
   return (
     <article
-      className={`relative flex min-h-[220px] flex-col justify-between border ${BORDER} p-5 transition-colors hover:bg-ink/[0.02]`}
+      className={`relative flex min-h-[220px] flex-col justify-between border ${BORDER} p-5 transition-[background-color,border-color] hover:border-[rgba(10,10,10)] hover:bg-ink/[0.02]`}
     >
       <Link
         to={`/notes/${note.slug}`}
-        className="block min-h-0 flex-1 text-left outline-none ring-ink transition-shadow focus-visible:ring-2"
+        className="block min-h-0 flex-1 text-left outline-none ring-ink transition-colors focus-visible:ring-2"
       >
         <div className="flex flex-col gap-3">
           <h3 className="text-[32px] font-light leading-[0.9] tracking-[-0.09em]">

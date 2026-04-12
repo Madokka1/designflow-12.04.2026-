@@ -5,6 +5,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { normalizeHeaderQuickNavLabels } from '../lib/appNav'
 import {
   DEFAULT_APP_SETTINGS,
   type AppSettings,
@@ -27,7 +28,13 @@ function loadSettings(): AppSettings {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return { ...DEFAULT_APP_SETTINGS }
     const parsed = JSON.parse(raw) as Partial<AppSettings>
-    return { ...DEFAULT_APP_SETTINGS, ...parsed }
+    const merged = { ...DEFAULT_APP_SETTINGS, ...parsed }
+    if ('headerQuickNavLabels' in parsed) {
+      merged.headerQuickNavLabels = normalizeHeaderQuickNavLabels(
+        parsed.headerQuickNavLabels,
+      )
+    }
+    return merged
   } catch {
     return { ...DEFAULT_APP_SETTINGS }
   }

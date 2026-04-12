@@ -21,9 +21,9 @@ function ProjectCard({ project }: { project: Project }) {
   return (
     <Link
       to={`/projects/${project.slug}`}
-      className="block text-left outline-none ring-ink transition-shadow duration-300 focus-visible:ring-2"
+      className="block text-left outline-none ring-ink transition-colors duration-300 focus-visible:ring-2"
     >
-      <article className="flex min-h-[220px] flex-col justify-between border border-[rgba(10,10,10,0.32)] transition-[background-color,transform,box-shadow] duration-300 ease-out motion-reduce:transition-colors hover:bg-ink/[0.02] hover:shadow-[0_12px_40px_-24px_rgba(10,10,10,0.35)] motion-reduce:hover:shadow-none hover:-translate-y-0.5 motion-reduce:hover:translate-y-0">
+      <article className="flex min-h-[220px] flex-col justify-between border border-[rgba(10,10,10,0.32)] transition-[background-color,border-color] duration-300 ease-out hover:border-[rgba(10,10,10)] hover:bg-ink/[0.02]">
         <div className="flex h-full min-h-[220px] flex-col justify-between p-5">
           <div className="flex flex-col gap-3">
             <h3 className="text-[32px] font-light leading-[0.9] tracking-[-0.09em]">

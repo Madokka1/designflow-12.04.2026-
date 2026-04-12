@@ -78,7 +78,7 @@ export function StageDetailModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={`ui-modal-panel-right relative flex h-full w-full max-w-[525px] flex-col border-l ${modalEdgeBorderClass} bg-surface shadow-none`}
+        className={`ui-modal-panel-right relative flex h-full max-h-[100dvh] min-h-0 w-full max-w-[525px] flex-col border-l ${modalEdgeBorderClass} bg-surface shadow-none`}
       >
         <div className="flex shrink-0 items-center border-b border-card-border py-3 pl-[max(1.5rem,env(safe-area-inset-left))] pr-[max(1.5rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:hidden">
           <button
@@ -201,9 +201,31 @@ export function StageDetailModal({
               {timerSessionActive ? 'Остановить таймер' : 'Запустить таймер'}
             </button>
           </div>
+
+          <div className="mt-8 flex max-w-[445px] flex-wrap gap-2 sm:hidden">
+            <button
+              type="button"
+              onClick={onEdit}
+              className="h-8 rounded-full bg-fill-contrast-bg px-5 text-sm font-light tracking-[-0.05em] text-fill-contrast-fg transition-opacity hover:opacity-90"
+            >
+              Редактировать этап
+            </button>
+            <button
+              type="button"
+              className="h-8 rounded-full bg-fill-contrast-bg px-5 text-sm font-light tracking-[-0.05em] text-fill-contrast-fg transition-opacity hover:opacity-90"
+              onClick={() => {
+                onDelete()
+                onClose()
+              }}
+              aria-label="Удалить этап"
+            >
+              Удалить
+            </button>
+          </div>
+          <div className="pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:hidden" aria-hidden />
         </div>
 
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-card-border bg-surface px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-10 sm:py-6">
+        <div className="hidden shrink-0 border-t border-card-border bg-surface px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-3 sm:px-10 sm:py-6">
           <button
             type="button"
             className="h-8 rounded-full bg-fill-contrast-bg px-5 text-sm font-light tracking-[-0.05em] text-fill-contrast-fg transition-opacity hover:opacity-90"

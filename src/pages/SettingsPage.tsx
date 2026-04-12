@@ -25,6 +25,10 @@ import {
 } from '../lib/profileSettingsSupabase'
 import { accentButtonStyle } from '../lib/pickContrastText'
 import {
+  HEADER_QUICK_NAV_CANDIDATES,
+  HEADER_QUICK_NAV_MAX,
+} from '../lib/appNav'
+import {
   PORTFOLIO_SCHEMA_SQL,
   SUPABASE_SQL_INSTRUCTION,
 } from '../lib/portfolioSchemaSql'
@@ -619,6 +623,56 @@ export function SettingsPage() {
               />
             </div>
           </Field>
+        </SettingsCard>
+
+        <SettingsCard
+          title="Шапка"
+          subtitle="Часто используемые разделы между логотипом и таймером на экранах от ~640px. Остальные пункты — в полном меню справа. Порядок как в списке ниже. Только в этом браузере (не синхронизируется с Supabase)."
+        >
+          <div className="flex flex-wrap gap-x-6 gap-y-3">
+            {HEADER_QUICK_NAV_CANDIDATES.map((label) => {
+              const checked = settings.headerQuickNavLabels.includes(label)
+              const blockAdd =
+                !checked &&
+                settings.headerQuickNavLabels.length >= HEADER_QUICK_NAV_MAX
+              return (
+                <label
+                  key={label}
+                  className={`flex items-center gap-2 text-sm font-light tracking-[-0.02em] text-ink ${
+                    blockAdd ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    className="h-3.5 w-3.5 shrink-0 rounded-sm border border-ink/30 accent-ink dark:border-white/25"
+                    checked={checked}
+                    disabled={blockAdd}
+                    onChange={(e) => {
+                      const on = e.target.checked
+                      if (
+                        on &&
+                        settings.headerQuickNavLabels.length >= HEADER_QUICK_NAV_MAX
+                      ) {
+                        return
+                      }
+                      const set = new Set(settings.headerQuickNavLabels)
+                      if (on) set.add(label)
+                      else set.delete(label)
+                      updateSettings({
+                        headerQuickNavLabels:
+                          HEADER_QUICK_NAV_CANDIDATES.filter((l) => set.has(l)),
+                      })
+                    }}
+                  />
+                  {label}
+                </label>
+              )
+            })}
+          </div>
+          <p className="text-xs font-light text-ink/55">
+            В шапке: {settings.headerQuickNavLabels.length} из {HEADER_QUICK_NAV_MAX}{' '}
+            ссылок
+          </p>
         </SettingsCard>
 
         <SettingsCard

@@ -162,7 +162,7 @@ function ProjectPreviewCard({ project }: { project: Project }) {
       to={`/projects/${project.slug}`}
       className="block h-full min-h-[140px] min-w-0 text-left outline-none ring-ink transition-shadow focus-visible:ring-2"
     >
-      <article className="flex h-full min-h-[140px] flex-col justify-between border border-[rgba(10,10,10,0.32)] p-4 transition-colors hover:bg-ink/[0.02]">
+      <article className="flex h-full min-h-[140px] flex-col justify-between border border-[rgba(10,10,10,0.32)] p-4 transition-[background-color,border-color] hover:border-[rgba(10,10,10)] hover:bg-ink/[0.02]">
         <div className="min-w-0">
           <h3 className="text-xl font-light leading-[0.95] tracking-[-0.06em]">
             {project.title}
@@ -350,6 +350,8 @@ export function HomePage() {
   const totalRevenue = useMemo(() => {
     let projectsTotal = 0
     for (const p of projects) {
+      const tags = p.tags ?? []
+      if (!tags.includes('оплачено')) continue
       projectsTotal += parseAmountRub(p.amount)
     }
     let transactionNet = 0
@@ -415,7 +417,7 @@ export function HomePage() {
       </header>
 
       <div className="mt-3 min-h-0 flex-1 overflow-y-auto lg:overflow-hidden">
-        <div className="grid min-h-0 grid-cols-1 gap-4 pb-2 lg:h-full lg:min-h-0 lg:grid-cols-[minmax(240px,18rem)_1fr] lg:gap-6 lg:pb-0">
+        <div className="grid min-h-0 grid-cols-1 gap-2 pb-2 lg:h-full lg:min-h-0 lg:grid-cols-[minmax(240px,18rem)_1fr] lg:gap-6 lg:pb-0">
           <aside className="flex min-h-0 flex-col gap-4 lg:h-full lg:min-h-0">
             <div
               className={`flex min-h-[100px] flex-1 flex-col justify-center border ${BORDER} p-5 lg:min-h-0`}
@@ -425,9 +427,6 @@ export function HomePage() {
               </p>
               <p className="mt-3 text-2xl font-light leading-none tracking-[-0.05em] sm:text-3xl">
                 {formatRevenueRub(totalRevenue)}
-              </p>
-              <p className="mt-2 text-[11px] font-light leading-snug text-ink/45">
-                Бюджеты проектов и чистый поток по операциям.
               </p>
               <Link
                 to="/finance"
@@ -465,9 +464,6 @@ export function HomePage() {
                 title="Сумма завершённых сессий учёта времени за сегодня (локальная дата)"
               >
                 {formatDurationRu(timerSecondsToday)}
-              </p>
-              <p className="mt-2 text-[11px] font-light leading-snug text-ink/45">
-                По журналу сессий на этапах. Помодоро в виджете снизу сюда не входит.
               </p>
               <Link
                 to="/settings"

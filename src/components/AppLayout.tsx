@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { DesignFlowLogo } from './DesignFlowLogo'
@@ -11,67 +11,13 @@ import { TimerTrackerWidget } from './TimerTrackerWidget'
 import { useRemoteSync } from '../context/remoteSyncContext'
 import { useProjects } from '../hooks/useProjects'
 import { useSettings } from '../hooks/useSettings'
+import {
+  NAV_MENU_GROUPS,
+  navActive,
+  navEntry,
+  normalizeHeaderQuickNavLabels,
+} from '../lib/appNav'
 import { formatDurationRu } from '../lib/formatDurationRu'
-const NAV = [
-  { label: 'Главная', to: '/' },
-  { label: 'Проекты', to: '/projects' },
-  { label: 'Задачи', to: '/tasks' },
-  { label: 'Клиенты', to: '/clients' },
-  { label: 'Шаблоны', to: '/templates' },
-  { label: 'Финансы', to: '/finance' },
-  { label: 'Календарь', to: '/calendar' },
-  { label: 'Сроки', to: '/deadlines' },
-  { label: 'Отчёты', to: '/reports' },
-  { label: 'Заметки', to: '/notes' },
-  { label: 'Настройки', to: '/settings' },
-] as const
-
-function navActive(pathname: string, item: (typeof NAV)[number]): boolean {
-  if (item.label === 'Главная') return pathname === '/'
-  if (item.label === 'Финансы') return pathname === '/finance'
-  if (item.label === 'Календарь') return pathname === '/calendar'
-  if (item.label === 'Задачи') return pathname === '/tasks'
-  if (item.label === 'Клиенты') return pathname === '/clients'
-  if (item.label === 'Шаблоны') return pathname === '/templates'
-  if (item.label === 'Сроки') return pathname === '/deadlines'
-  if (item.label === 'Отчёты') return pathname === '/reports'
-  if (item.label === 'Заметки') {
-    return pathname === '/notes' || pathname.startsWith('/notes/')
-  }
-  if (item.label === 'Проекты') {
-    return pathname === '/projects' || pathname.startsWith('/projects/')
-  }
-  if (item.label === 'Настройки') return pathname === '/settings'
-  return false
-}
-
-type NavLabel = (typeof NAV)[number]['label']
-
-/** Группы разделов в полноэкранном меню (заголовок капсом + ссылки). */
-const NAV_MENU_GROUPS: { title: string; labels: readonly NavLabel[] }[] = [
-  {
-    title: 'Портфель и клиенты',
-    labels: ['Главная', 'Проекты', 'Клиенты', 'Шаблоны'],
-  },
-  {
-    title: 'Задачи и календарь',
-    labels: ['Задачи', 'Календарь', 'Сроки'],
-  },
-  {
-    title: 'Финансы и отчёты',
-    labels: ['Финансы', 'Отчёты'],
-  },
-  {
-    title: 'Контент и система',
-    labels: ['Заметки', 'Настройки'],
-  },
-]
-
-function navEntry(label: NavLabel): (typeof NAV)[number] {
-  const item = NAV.find((x) => x.label === label)
-  if (!item) throw new Error(`Unknown nav label: ${label}`)
-  return item
-}
 
 function HeaderPattern() {
   return (
@@ -188,6 +134,11 @@ export function AppLayout() {
   } = useProjects()
   const { settings } = useSettings()
   const { portfolio, setPortfolioSync } = useRemoteSync()
+
+  const headerQuickNavLabels = useMemo(
+    () => normalizeHeaderQuickNavLabels(settings.headerQuickNavLabels),
+    [settings.headerQuickNavLabels],
+  )
   const [timerPickOpen, setTimerPickOpen] = useState(false)
   const [timerPickKey, setTimerPickKey] = useState(0)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
@@ -278,7 +229,7 @@ export function AppLayout() {
 
       <header className="relative z-50 border-b border-ink/10 bg-surface">
         <HeaderBarGrid patternId={headerGridPatternId} />
-        <div className="relative mx-auto flex h-[4.25rem] w-full max-w-[1840px] items-center justify-between gap-6 px-4 sm:h-[4.5rem] sm:px-10">
+        <div className="relative mx-auto flex h-[4.25rem] w-full max-w-[1840px] items-center gap-4 px-4 sm:h-[4.5rem] sm:gap-6 sm:px-10">
           <Link
             to="/"
             className="flex shrink-0 items-center text-ink transition-opacity duration-200 hover:opacity-80"
@@ -289,7 +240,34 @@ export function AppLayout() {
           >
             <DesignFlowLogo className="h-[1.35rem] w-auto sm:h-6" />
           </Link>
-          <div className="flex shrink-0 items-center gap-5 sm:gap-7">
+          {headerQuickNavLabels.length > 0 ? (
+            <nav
+              className="mx-auto hidden min-w-0 max-w-[min(100%,52rem)] flex-1 flex-wrap items-center justify-center gap-x-0.5 gap-y-1 sm:flex md:gap-x-1"
+              aria-label="Частые разделы"
+            >
+              {headerQuickNavLabels.map((label) => {
+                const item = navEntry(label)
+                const active = navActive(location.pathname, item)
+                return (
+                  <Link
+                    key={label}
+                    to={item.to}
+                    className={`whitespace-nowrap rounded-sm px-2 py-1 text-sm font-light tracking-[-0.02em] transition-colors md:px-2.5 ${
+                      active
+                        ? 'text-ink'
+                        : 'text-ink/50 hover:text-ink dark:text-ink/45 dark:hover:text-ink'
+                    }`}
+                    aria-current={active ? 'page' : undefined}
+                  >
+                    {item.label}
+                  </Link>
+                )
+              })}
+            </nav>
+          ) : (
+            <div className="hidden min-w-0 flex-1 sm:block" aria-hidden />
+          )}
+          <div className="ml-auto flex shrink-0 items-center gap-5 sm:gap-7">
             <button
               type="button"
               className="rounded-full border border-black bg-black px-4 py-2 text-sm font-light tabular-nums tracking-[-0.04em] text-white transition-[background-color,opacity] duration-200 hover:bg-neutral-900 active:opacity-90"

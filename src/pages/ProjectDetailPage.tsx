@@ -28,9 +28,9 @@ function StageRow({
     <button
       type="button"
       onClick={() => onOpen(stage)}
-      className="w-full cursor-pointer text-left outline-none ring-ink transition-[background-color,transform] duration-200 ease-out motion-reduce:transition-colors hover:bg-ink/[0.02] hover:-translate-y-px motion-reduce:hover:translate-y-0 focus-visible:ring-2"
+      className="group w-full cursor-pointer text-left outline-none ring-ink transition-[background-color,border-color] duration-200 ease-out hover:bg-ink/[0.02] focus-visible:ring-2"
     >
-    <div className="flex flex-col gap-6 border border-[rgba(10,10,10,0.4)] p-5 sm:flex-row sm:items-stretch sm:gap-8">
+    <div className="flex flex-col gap-6 border border-[rgba(10,10,10,0.4)] p-5 transition-colors group-hover:border-[rgba(10,10,10)] sm:flex-row sm:items-stretch sm:gap-8">
       <div className="flex min-w-0 flex-1 flex-col gap-5">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
           <span className="text-[10px] font-light uppercase leading-none tracking-[-0.02em]">

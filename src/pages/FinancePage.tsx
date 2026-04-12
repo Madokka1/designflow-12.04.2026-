@@ -33,6 +33,12 @@ function financeBucket(p: Project): FinanceBucket {
   return 'awaiting'
 }
 
+/** Проект без тега «оплачено», не из раздела «Личные» (вкладка логов). */
+function isUnpaidNonPersonal(p: Project): boolean {
+  if (getProjectSection(p) === 'Личные') return false
+  return !((p.tags ?? []).includes('оплачено'))
+}
+
 function projectsWord(n: number): string {
   const m = n % 100
   if (m >= 11 && m <= 14) return `${n} проектов`
@@ -51,13 +57,19 @@ function stagesWord(n: number): string {
   return `${n} этапов`
 }
 
-type LogTab = 'all' | 'Разработка' | 'Поддержка' | 'Личные'
+type LogTab =
+  | 'all'
+  | 'Разработка'
+  | 'Поддержка'
+  | 'Личные'
+  | 'awaiting_payment'
 
 const LOG_TABS: { id: LogTab; label: string }[] = [
   { id: 'all', label: 'Все проекты' },
   { id: 'Разработка', label: 'Разработка' },
   { id: 'Поддержка', label: 'Поддержка' },
   { id: 'Личные', label: 'Личные' },
+  { id: 'awaiting_payment', label: 'Ожидает оплату' },
 ]
 
 export function FinancePage() {
@@ -78,7 +90,10 @@ export function FinancePage() {
   }, [location.hash, financeTransactions.length])
 
   const stats = useMemo(() => {
-    let projectsTotal = 0
+    /** Сумма договоров по всем проектам — знаменатель для долей в разбивке */
+    let allProjectsSum = 0
+    /** Как на главной: в оборот входят только суммы проектов с тегом «оплачено» */
+    let paidProjectsSum = 0
     const amt: Record<FinanceBucket, number> = {
       personal: 0,
       paid: 0,
@@ -95,12 +110,15 @@ export function FinancePage() {
 
     for (const p of projects) {
       const a = parseAmountRub(p.amount)
-      projectsTotal += a
+      allProjectsSum += a
       const b = financeBucket(p)
       amt[b] += a
       cnt[b] += 1
       if (b === 'staged') {
         stagedStages += p.stages?.length ?? 0
+      }
+      if (paymentTag(p) === 'оплачено') {
+        paidProjectsSum += a
       }
     }
 
@@ -110,16 +128,17 @@ export function FinancePage() {
       else transactionNet -= tx.amountRub
     }
 
-    /** Итог «Оборот» / «Анализ»: суммы по проектам ± транзакции */
-    const total = projectsTotal + transactionNet
+    /** Итог «Оборот» / «Анализ»: оплаченные проекты + чистый поток по транзакциям (как на главной) */
+    const total = paidProjectsSum + transactionNet
 
     const pct = (part: number) =>
-      projectsTotal > 0 ? Math.round((part / projectsTotal) * 100) : 0
+      allProjectsSum > 0 ? Math.round((part / allProjectsSum) * 100) : 0
 
     const analysisAwaiting = amt.awaiting + amt.staged
 
     return {
-      projectsTotal,
+      /** Сумма по проектам с тегом «оплачено» (для подписи к обороту) */
+      paidProjectsSum,
       transactionNet,
       total,
       amt,
@@ -137,21 +156,24 @@ export function FinancePage() {
 
   const logProjects = useMemo(() => {
     if (logTab === 'all') return projects
+    if (logTab === 'awaiting_payment') {
+      return projects.filter(isUnpaidNonPersonal)
+    }
     return projects.filter((p) => getProjectSection(p) === logTab)
   }, [projects, logTab])
 
   const logRows = useMemo(() => {
-    if (logTab !== 'all') {
-      return logProjects.map((p) => ({ kind: 'project' as const, project: p }))
+    if (logTab === 'all') {
+      const txs = financeTransactions.map((tx) => ({
+        kind: 'transaction' as const,
+        tx,
+      }))
+      return [
+        ...txs,
+        ...logProjects.map((p) => ({ kind: 'project' as const, project: p })),
+      ]
     }
-    const txs = financeTransactions.map((tx) => ({
-      kind: 'transaction' as const,
-      tx,
-    }))
-    return [
-      ...txs,
-      ...logProjects.map((p) => ({ kind: 'project' as const, project: p })),
-    ]
+    return logProjects.map((p) => ({ kind: 'project' as const, project: p }))
   }, [logTab, logProjects, financeTransactions])
 
   return (
@@ -175,7 +197,7 @@ export function FinancePage() {
               </p>
               {stats.transactionNet !== 0 ? (
                 <p className="text-sm font-light leading-snug tracking-[-0.02em] text-ink/55">
-                  Проекты {formatRubDots(stats.projectsTotal)}
+                  Оплачено по проектам {formatRubDots(stats.paidProjectsSum)}
                   {stats.transactionNet > 0 ? ' · +' : ' · '}
                   {formatRubDots(stats.transactionNet)} по транзакциям
                 </p>
@@ -398,7 +420,7 @@ function BreakdownCol({
 }) {
   return (
     <div className="flex min-h-[120px] flex-1 flex-col justify-between gap-2.5 pt-10 first:pt-0 lg:px-5 lg:pt-0 lg:first:pl-0">
-      <div className="flex flex-row flex-wrap items-center justify-center gap-2.5 px-1">
+      <div className="flex flex-row flex-wrap items-center justify-between gap-2.5">
         <p className="text-base font-light leading-[0.9] tracking-[-0.09em]">
           {formatRubDots(amount)}
         </p>
@@ -407,7 +429,7 @@ function BreakdownCol({
         </p>
       </div>
       <div className="flex flex-col gap-2.5">
-        <div className="flex flex-row items-center justify-between px-1">
+        <div className="flex flex-row items-center justify-between">
           <span className="text-[10px] font-light uppercase leading-none tracking-[-0.02em]">
             {label}
           </span>
@@ -415,7 +437,7 @@ function BreakdownCol({
             {pct}%
           </span>
         </div>
-        <div className="flex h-10 flex-row gap-2.5 rounded-full bg-ink/[0.06] p-2.5">
+        <div className="flex h-2 flex-row gap-2.5 rounded-full bg-ink/[0.06]">
           <div
             className="h-full min-w-0 rounded-full transition-[width] duration-300"
             style={{

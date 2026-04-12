@@ -4,6 +4,7 @@ import { useProjects } from '../hooks/useProjects'
 import { useSettings } from '../hooks/useSettings'
 import { accentButtonStyle } from '../lib/pickContrastText'
 import { formInputUnderlineClass } from '../lib/formInputClasses'
+import { telegramContactHref } from '../lib/telegramContactLink'
 import type { WorkspaceClient } from '../types/workspaceClient'
 
 const input = formInputUnderlineClass
@@ -15,7 +16,7 @@ export function ClientsPage() {
   const focusId = searchParams.get('focus') ?? ''
 
   const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
+  const [telegram, setTelegram] = useState('')
   const [phone, setPhone] = useState('')
   const [company, setCompany] = useState('')
   const [notes, setNotes] = useState('')
@@ -33,7 +34,7 @@ export function ClientsPage() {
 
   return (
     <main className="relative z-10 mx-auto w-full max-w-[1840px] px-4 pb-16 pt-8 sm:px-10 sm:pt-10">
-      <h1 className="text-[clamp(2rem,5vw,3.5rem)] font-light leading-[0.9] tracking-[-0.09em]">
+      <h1 className="text-[clamp(2rem,5vw,3.5rem)] font-light leading-[0.9] tracking-[-0.04em]">
         Клиенты
       </h1>
 
@@ -41,9 +42,9 @@ export function ClientsPage() {
         className="mt-10 grid max-w-3xl gap-4 sm:grid-cols-2"
         onSubmit={(e) => {
           e.preventDefault()
-          addClient({ name, email, phone, company, notes })
+          addClient({ name, email: telegram, phone, company, notes })
           setName('')
-          setEmail('')
+          setTelegram('')
           setPhone('')
           setCompany('')
           setNotes('')
@@ -56,8 +57,26 @@ export function ClientsPage() {
           <input className={input} value={name} onChange={(e) => setName(e.target.value)} />
         </label>
         <label>
-          <span className="text-[10px] font-light uppercase text-ink/50">Email</span>
-          <input className={input} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <span className="text-[10px] font-light uppercase text-ink/50">
+            Telegram
+          </span>
+          <input
+            className={input}
+            autoComplete="off"
+            placeholder="@username или t.me/…"
+            value={telegram}
+            onChange={(e) => setTelegram(e.target.value)}
+          />
+          {telegramContactHref(telegram) ? (
+            <a
+              href={telegramContactHref(telegram)!}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 inline-block text-xs font-light text-ink/55 underline-offset-4 hover:text-ink hover:underline"
+            >
+              Открыть в Telegram
+            </a>
+          ) : null}
         </label>
         <label>
           <span className="text-[10px] font-light uppercase text-ink/50">Телефон</span>
@@ -116,7 +135,7 @@ function ClientEditor({
   onDelete: () => void
 }) {
   const [name, setName] = useState(client.name)
-  const [email, setEmail] = useState(client.email)
+  const [telegram, setTelegram] = useState(client.email)
   const [phone, setPhone] = useState(client.phone)
   const [company, setCompany] = useState(client.company)
   const [notes, setNotes] = useState(client.notes)
@@ -129,7 +148,25 @@ function ClientEditor({
         onChange={(e) => setName(e.target.value)}
       />
       <div className="grid gap-3 sm:grid-cols-2">
-        <input className={input} placeholder="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <div className="flex min-w-0 flex-col">
+          <input
+            className={input}
+            autoComplete="off"
+            placeholder="Telegram (@username или ссылка)"
+            value={telegram}
+            onChange={(e) => setTelegram(e.target.value)}
+          />
+          {telegramContactHref(telegram) ? (
+            <a
+              href={telegramContactHref(telegram)!}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 text-xs font-light text-ink/55 underline-offset-4 hover:text-ink hover:underline"
+            >
+              Открыть в Telegram
+            </a>
+          ) : null}
+        </div>
         <input className={input} placeholder="Телефон" value={phone} onChange={(e) => setPhone(e.target.value)} />
       </div>
       <input className={input} placeholder="Компания" value={company} onChange={(e) => setCompany(e.target.value)} />
@@ -140,7 +177,7 @@ function ClientEditor({
           className="h-8 rounded-full px-4 text-sm font-light"
           style={accentButtonStyle(accent)}
           onClick={() =>
-            onSave({ name, email, phone, company, notes })
+            onSave({ name, email: telegram, phone, company, notes })
           }
         >
           Сохранить

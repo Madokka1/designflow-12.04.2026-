@@ -118,10 +118,20 @@ export function StageFormModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={`ui-modal-panel-right relative flex h-full w-full max-w-[960px] flex-col border-l ${modalEdgeBorderClass} bg-surface shadow-none`}
+        className={`ui-modal-panel-right relative flex h-full max-h-[100dvh] min-h-0 w-full max-w-[960px] flex-col border-l ${modalEdgeBorderClass} bg-surface shadow-none`}
       >
-        <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-32 pt-16 sm:px-10 sm:pt-20">
+        <form className="flex h-full min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
+          <div className="flex shrink-0 items-center border-b border-card-border py-3 pl-[max(1.5rem,env(safe-area-inset-left))] pr-[max(1.5rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:hidden">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex text-sm font-light tracking-[-0.02em] text-ink underline-offset-4 outline-none ring-ink transition-opacity hover:underline hover:opacity-90 focus-visible:ring-2"
+              aria-label="Назад"
+            >
+              ← Назад
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-6 sm:px-10 sm:pt-20">
             <h2
               id={titleId}
               className="text-[clamp(2rem,5vw,4rem)] font-light leading-[0.9] tracking-[-0.09em]"
@@ -303,20 +313,29 @@ export function StageFormModal({
             </div>
           </div>
 
-          <div className="absolute bottom-0 left-0 right-0 flex flex-wrap items-center justify-between gap-4 border-t border-transparent bg-surface px-6 py-6 sm:px-10 sm:py-8">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-card-border bg-surface px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-10 sm:py-6">
             <button
               type="submit"
               className="h-8 rounded-full bg-fill-contrast-bg px-5 text-sm font-light tracking-[-0.05em] text-fill-contrast-fg transition-opacity hover:opacity-90"
             >
               {submitLabel}
             </button>
-            <button
-              type="button"
-              className="h-8 rounded-full bg-fill-contrast-bg px-5 text-sm font-light tracking-[-0.05em] text-fill-contrast-fg transition-opacity hover:opacity-90"
-              onClick={reset}
-            >
-              Сбросить
-            </button>
+            <div className="flex flex-wrap items-center justify-end gap-3 sm:gap-4">
+              <button
+                type="button"
+                className="h-8 rounded-full border border-card-border bg-surface px-5 text-sm font-light tracking-[-0.05em] text-ink transition-colors hover:bg-ink/[0.04]"
+                onClick={onClose}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                className="h-8 rounded-full bg-fill-contrast-bg px-5 text-sm font-light tracking-[-0.05em] text-fill-contrast-fg transition-opacity hover:opacity-90"
+                onClick={reset}
+              >
+                Сбросить
+              </button>
+            </div>
           </div>
         </form>
       </div>

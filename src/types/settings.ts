@@ -41,6 +41,11 @@ export type AppSettings = {
   telegramNotifyCreatesEnabled: boolean
   /** Автовыход при простое, минуты; 0 — выключено. */
   sessionIdleMinutes: number
+  /**
+   * Ярлыки разделов между логотипом и таймером (от sm). Подписи как в меню навигации.
+   * Только localStorage, в Supabase не синхронизируется.
+   */
+  headerQuickNavLabels: string[]
 }
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
@@ -67,4 +72,5 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   telegramDeadlineNotifyDaysBefore: 3,
   telegramNotifyCreatesEnabled: true,
   sessionIdleMinutes: 0,
+  headerQuickNavLabels: ['Проекты', 'Финансы', 'Календарь', 'Заметки'],
 }

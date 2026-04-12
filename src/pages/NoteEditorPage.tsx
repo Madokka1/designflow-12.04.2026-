@@ -598,7 +598,7 @@ function BlockRow({
   }
 
   const baseInput =
-    'w-full border-0 bg-transparent font-light tracking-[-0.09em] text-ink outline-none placeholder:text-ink/35 focus:ring-0'
+    'w-full border-0 bg-transparent font-light tracking-[-0.04em] text-ink outline-none placeholder:text-ink/35 focus:ring-0'
 
   let body: ReactNode
   switch (block.type) {
@@ -877,7 +877,7 @@ function TodoLine({
         aria-label={item.done ? 'Снять отметку' : 'Отметить'}
       />
       <input
-        className="min-w-0 flex-1 border-0 bg-transparent text-base font-light leading-[1.4] tracking-[-0.09em] text-ink outline-none"
+        className="min-w-0 flex-1 border-0 bg-transparent text-base font-light leading-[1.4] tracking-[-0.04em] text-ink outline-none"
         value={item.label}
         placeholder="Задача"
         onChange={(e) => onChange({ ...item, label: e.target.value })}
