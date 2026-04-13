@@ -2,6 +2,11 @@ import { useEffect, useId, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { modalEdgeBorderClass } from '../lib/formInputClasses'
+import { partitionProjectCardTags } from '../lib/projectSection'
+import {
+  modalStageHeaderChipClass,
+  projectCardTagChipClass,
+} from '../lib/tagChipClasses'
 import { formatDurationRu } from '../lib/formatDurationRu'
 import { stagePlannedRows } from '../lib/stagePlannedRows'
 import type { Project, ProjectStage } from '../types/project'
@@ -36,6 +41,8 @@ export function StageDetailModal({
   const titleId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
   const tags = project.tags ?? CARD_FALLBACK_TAGS
+  const { section: cardSection, chipTags: cardChipTags } =
+    partitionProjectCardTags(tags)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -95,22 +102,29 @@ export function StageDetailModal({
             {stage.name}
           </span>
 
-          <div className="flex max-w-[445px] flex-col justify-between gap-2.5 border border-card-border p-5">
-            <div className="flex flex-col gap-3">
-              <h2 className="text-[32px] font-light leading-[0.9] tracking-[-0.09em]">
-                {project.title}
-              </h2>
-              <p className="text-base font-light leading-[0.9] tracking-[-0.09em]">
-                {project.client}
-              </p>
+          <div className="flex max-w-[445px] flex-col justify-between gap-2.5 rounded-[3px] border border-card-border p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1 flex flex-col gap-3">
+                <h2 className="text-[24px] font-light leading-[0.9] tracking-[-0.09em]">
+                  {project.title}
+                </h2>
+                <p className="text-[14px] font-light leading-[0.9] tracking-[-0.09em]">
+                  {project.client}
+                </p>
+              </div>
+              {cardSection ? (
+                <span className="max-w-[45%] shrink-0 pt-0.5 text-right text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink/65">
+                  {cardSection}
+                </span>
+              ) : null}
             </div>
             <div className="mt-4 flex flex-col gap-2.5">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-5">
-                  {tags.map((label, i) => (
+                <div className="flex flex-wrap items-center gap-2">
+                  {cardChipTags.map((label, i) => (
                     <span
                       key={`${label}-${i}`}
-                      className="text-[10px] font-light uppercase leading-none tracking-[-0.02em]"
+                      className={projectCardTagChipClass(label)}
                     >
                       {label}
                     </span>
@@ -150,7 +164,7 @@ export function StageDetailModal({
                 {headerTags.map((label, i) => (
                   <span
                     key={`${label}-${i}`}
-                    className="text-[10px] font-light uppercase leading-none tracking-[-0.02em]"
+                    className={modalStageHeaderChipClass(label)}
                   >
                     {label}
                   </span>

@@ -5,6 +5,7 @@ import type { FinanceTransaction } from '../types/financeTransaction'
 import type { Project, ProjectStage } from '../types/project'
 import type { ProjectTemplate } from '../types/projectTemplate'
 import type { WorkspaceClient } from '../types/workspaceClient'
+import { normalizeWorkspaceTask } from './workspaceTaskNormalize'
 import type { WorkspaceTask } from '../types/workspaceTask'
 
 type ProjectRow = {
@@ -261,15 +262,27 @@ export async function fetchPortfolioBundle(
       project_slug: string | null
       labels: unknown
       sort_order: number
-    }[]).map((r) => ({
-      id: r.id,
-      title: r.title,
-      done: r.done,
-      dueDate: r.due_date ?? '',
-      projectSlug: r.project_slug,
-      labels: asStringArray(r.labels),
-      sortOrder: r.sort_order ?? 0,
-    }))
+      comment?: string
+      reminder_preset?: string
+      reminder_at_custom?: string
+    }[]).map((r) =>
+      normalizeWorkspaceTask({
+        id: r.id,
+        title: r.title,
+        done: r.done,
+        dueDate: r.due_date ?? '',
+        projectSlug: r.project_slug,
+        labels: asStringArray(r.labels),
+        sortOrder: r.sort_order ?? 0,
+        comment: typeof r.comment === 'string' ? r.comment : '',
+        reminderPreset:
+          typeof r.reminder_preset === 'string'
+            ? (r.reminder_preset as WorkspaceTask['reminderPreset'])
+            : undefined,
+        reminderAtCustom:
+          typeof r.reminder_at_custom === 'string' ? r.reminder_at_custom : '',
+      }),
+    )
   }
 
   let templates: ProjectTemplate[] = []
@@ -493,6 +506,9 @@ export async function upsertTaskRemote(
       project_slug: t.projectSlug,
       labels: t.labels,
       sort_order: t.sortOrder,
+      comment: t.comment,
+      reminder_preset: t.reminderPreset,
+      reminder_at_custom: t.reminderAtCustom,
     },
     { onConflict: 'id' },
   )

@@ -63,7 +63,7 @@ export type ProjectsContextValue = {
   isStageTimerRunning: (projectSlug: string, stageId: string) => boolean
   /** Сеанс на этапе активен: идёт или на паузе */
   isStageTimerSessionActive: (projectSlug: string, stageId: string) => boolean
-  /** Сумма секунд по всем проектам + текущий сеанс (для шапки) */
+  /** Секунды текущего сеанса таймера (для кнопки в шапке; сбрасывается при стопе) */
   headerTimerSeconds: number
   /** Секунды только текущего запущенного сеанса таймера (0, если таймер выключен) */
   stageTimerSessionSeconds: number

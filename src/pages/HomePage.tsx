@@ -4,6 +4,8 @@ import { formatDurationRu } from '../lib/formatDurationRu'
 import { parseAmountRub } from '../lib/parseAmountRub'
 import { parseRuDate } from '../lib/parseRuDate'
 import { useNotesContext } from '../hooks/useNotesContext'
+import { partitionProjectCardTags } from '../lib/projectSection'
+import { projectCardTagChipClass } from '../lib/tagChipClasses'
 import { useProjects } from '../hooks/useProjects'
 import type { CalendarCustomEvent } from '../types/calendarCustomEvent'
 import type { Project } from '../types/project'
@@ -157,26 +159,42 @@ function buildActivityMap(
 
 function ProjectPreviewCard({ project }: { project: Project }) {
   const tags = project.tags ?? CARD_FALLBACK_TAGS
+  const { section, chipTags } = partitionProjectCardTags(tags)
+
   return (
     <Link
       to={`/projects/${project.slug}`}
       className="block h-full min-h-[140px] min-w-0 text-left outline-none ring-ink transition-shadow focus-visible:ring-2"
     >
-      <article className="flex h-full min-h-[140px] flex-col justify-between border border-[rgba(10,10,10,0.32)] p-4 transition-[background-color,border-color] hover:border-[rgba(10,10,10)] hover:bg-ink/[0.02]">
-        <div className="min-w-0">
-          <h3 className="text-xl font-light leading-[0.95] tracking-[-0.06em]">
-            {project.title}
-          </h3>
-          <p className="mt-1.5 line-clamp-2 text-sm font-light tracking-[-0.02em] text-ink/75">
-            {project.client}
-          </p>
+      <article className="flex h-full min-h-[140px] flex-col justify-between rounded-[3px] border border-[rgba(10,10,10,0.32)] p-4 transition-[background-color,border-color] hover:border-[rgba(10,10,10)] hover:bg-ink/[0.02]">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-[24px] font-light leading-[0.95] tracking-[-0.06em]">
+              {project.title}
+            </h3>
+            <p className="mt-1.5 line-clamp-2 text-[14px] font-light tracking-[-0.02em] text-ink/75">
+              {project.client}
+            </p>
+          </div>
+          {section ? (
+            <span className="max-w-[40%] shrink-0 pt-0.5 text-right text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink/65">
+              {section}
+            </span>
+          ) : null}
         </div>
         <div className="mt-4 flex flex-col gap-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink/70">
-              {tags[0]}
-            </span>
-            <span className="text-sm font-light tracking-[-0.04em]">
+            <div className="flex flex-wrap items-center gap-2">
+              {chipTags.map((label, i) => (
+                <span
+                  key={`${label}-${i}`}
+                  className={projectCardTagChipClass(label)}
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
+            <span className="shrink-0 text-sm font-light tracking-[-0.04em]">
               {project.amount}
             </span>
           </div>

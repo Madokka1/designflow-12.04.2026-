@@ -55,6 +55,11 @@ function commentFromActual(actual: string): string {
   return actual.slice(i + sep.length).trim()
 }
 
+/** Комментарий после « · » в сохранённой строке `actual` (если раньше писали время и комментарий в одну строку). */
+export function stageCommentFromActual(actual: string): string {
+  return commentFromActual(actual)
+}
+
 function secondsToDurationInput(sec: number): string {
   const s = Math.max(0, Math.floor(sec))
   const h = Math.floor(s / 3600)
@@ -74,6 +79,24 @@ function parseActualSecondsFromStageActual(actual: string): number | undefined {
   const p = parseDurationRuPhrase(inner)
   if (!p) return undefined
   return p.h * 3600 + p.m * 60 + p.s
+}
+
+/** Секунды учёта: приоритет `timeSpentSeconds`, иначе разбор из `actual` без хвоста-комментария. */
+export function stageEffectiveTimeSpentSeconds(
+  stage: Pick<ProjectStage, 'timeSpentSeconds' | 'actual'>,
+): number | undefined {
+  if (stage.timeSpentSeconds != null) return stage.timeSpentSeconds
+  return parseActualSecondsFromStageActual(stage.actual)
+}
+
+/** Одна строка для плашки/подписи «фактическое время» без комментария. */
+export function stageActualTimeLine(
+  stage: Pick<ProjectStage, 'timeSpentSeconds' | 'actual'>,
+): string {
+  const sec = stageEffectiveTimeSpentSeconds(stage)
+  return sec == null
+    ? 'фактическое время: —'
+    : `фактическое время: ${formatDurationRu(sec)}`
 }
 
 /** Строка actual и секунды из формы этапа */

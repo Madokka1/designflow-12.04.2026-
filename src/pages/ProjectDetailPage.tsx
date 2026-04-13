@@ -11,8 +11,17 @@ import { useNotesContext } from '../hooks/useNotesContext'
 import { useProjects } from '../hooks/useProjects'
 import { formatDurationRu } from '../lib/formatDurationRu'
 import { formatRubDots } from '../lib/parseAmountRub'
+import { partitionProjectCardTags } from '../lib/projectSection'
 import { computeProjectProfitRub } from '../lib/projectProfit'
 import { stagePlannedRows } from '../lib/stagePlannedRows'
+import {
+  stageActualTimeLine,
+  stageCommentFromActual,
+} from '../lib/stageToForm'
+import {
+  projectCardTagChipClass,
+  stageStatusChipClass,
+} from '../lib/tagChipClasses'
 import type { ProjectStage } from '../types/project'
 
 const CARD_FALLBACK_TAGS = ['Ожидает оплаты', 'В работе', 'Разработка'] as const
@@ -30,8 +39,17 @@ function StageRow({
   onOpen: (s: ProjectStage) => void
   onMove: (direction: 'up' | 'down') => void
 }) {
+  const stageComment =
+    stage.description?.trim() || stageCommentFromActual(stage.actual)
+
   const reorderBtn =
     'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-ink/15 text-sm font-light leading-none text-ink/65 transition-colors hover:bg-ink/[0.04] hover:text-ink disabled:cursor-not-allowed disabled:opacity-25 dark:border-white/20'
+
+  const chipTypography =
+    'inline-flex items-center text-[10px] font-light uppercase leading-none tracking-[-0.02em]'
+  const chipDefault = `${chipTypography} rounded-full border border-ink/12 bg-ink/[0.03] px-2.5 py-1 text-ink/80 dark:border-white/12 dark:bg-white/[0.04] dark:text-ink/75`
+
+  const statusChipClass = stageStatusChipClass(stage.status)
 
   return (
     <div className="flex gap-2 sm:gap-3">
@@ -60,46 +78,39 @@ function StageRow({
         onClick={() => onOpen(stage)}
         className="group min-w-0 flex-1 cursor-pointer text-left outline-none ring-ink transition-[background-color,border-color] duration-200 ease-out hover:bg-ink/[0.02] focus-visible:ring-2"
       >
-        <div className="flex flex-col gap-6 border border-[rgba(10,10,10,0.4)] p-5 transition-colors group-hover:border-[rgba(10,10,10)] sm:flex-row sm:items-stretch sm:gap-8">
-          <div className="flex min-w-0 flex-1 flex-col gap-5">
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-              <span className="text-[10px] font-light uppercase leading-none tracking-[-0.02em]">
-                {stage.status}
-              </span>
-              <span className="text-[10px] font-light uppercase leading-none tracking-[-0.02em]">
-                дедлайн: {stage.deadline}
-              </span>
+        <div className="flex flex-col overflow-hidden rounded-[3px] border border-ink/15 transition-colors group-hover:border-ink/25 sm:flex-row sm:items-stretch">
+          <div className="flex min-w-0 flex-1 flex-col gap-4 p-5 sm:gap-5 sm:p-6 sm:pr-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={statusChipClass}>{stage.status}</span>
+              <span className={chipDefault}>дедлайн: {stage.deadline}</span>
             </div>
-            <h3 className="text-[32px] font-light leading-[0.9] tracking-[-0.09em]">
+            <h3 className="text-[clamp(1.5rem,4vw,2rem)] font-light leading-[0.95] tracking-[-0.06em]">
               {stage.name}
             </h3>
+            {stageComment ? (
+              <p className="max-w-[min(100%,40rem)] border-l-2 border-ink/15 pl-3 text-sm font-light leading-relaxed tracking-[-0.02em] text-ink/65 dark:border-white/20 dark:text-ink/60">
+                {stageComment}
+              </p>
+            ) : null}
           </div>
-          <div
-            className={`flex w-full min-w-0 shrink-0 flex-col justify-between gap-4 sm:w-auto sm:max-w-[min(100%,20rem)] sm:items-end ${
-              stage.actualInPill ? 'sm:min-h-[55px]' : 'sm:min-h-[55px]'
-            }`}
-          >
-            <div className="flex w-full flex-col gap-2.5 sm:items-end">
+          <div className="flex w-full min-w-0 shrink-0 flex-col justify-between gap-4 border-t border-ink/10 bg-ink/[0.025] px-5 py-5 sm:w-[min(100%,17.5rem)] sm:border-l sm:border-t-0 sm:border-ink/10 sm:px-6 sm:py-6 dark:bg-white/[0.03]">
+            <div className="flex w-full flex-col gap-3 sm:items-end">
               {stagePlannedRows(stage.planned).map((line, i) => (
                 <p
                   key={i}
-                  className="w-full text-[10px] font-light uppercase leading-relaxed tracking-[-0.02em] text-ink/90 sm:text-right"
+                  className="w-full text-[10px] font-light uppercase leading-relaxed tracking-[-0.02em] text-ink/75 sm:text-right"
                 >
                   {line}
                 </p>
               ))}
             </div>
             {stage.actualInPill ? (
-              <div className="inline-flex rounded-full bg-fill-contrast-bg px-2.5 py-1 text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-fill-contrast-fg">
-                {stage.timeSpentSeconds != null
-                  ? `фактическое время: ${formatDurationRu(stage.timeSpentSeconds)}`
-                  : stage.actual}
+              <div className="inline-flex self-start rounded-full bg-fill-contrast-bg px-2.5 py-1 text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-fill-contrast-fg sm:self-end">
+                {stageActualTimeLine(stage)}
               </div>
             ) : (
-              <p className="text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink sm:text-right">
-                {stage.timeSpentSeconds != null
-                  ? `фактическое время: ${formatDurationRu(stage.timeSpentSeconds)}`
-                  : stage.actual}
+              <p className="text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink/80 sm:text-right">
+                {stageActualTimeLine(stage)}
               </p>
             )}
           </div>
@@ -145,6 +156,8 @@ export function ProjectDetailPage() {
   }
 
   const tags = project.tags ?? CARD_FALLBACK_TAGS
+  const { section: cardSection, chipTags: cardChipTags } =
+    partitionProjectCardTags(tags)
   const stages = project.stages ?? DEFAULT_PROJECT_STAGES
   const linkedClient = project.clientId
     ? getClientById(project.clientId)
@@ -225,7 +238,7 @@ export function ProjectDetailPage() {
       </div>
 
       <div className="mt-10 flex flex-col gap-10 xl:flex-row xl:items-start xl:gap-10">
-        <section className="order-2 flex min-w-0 flex-1 flex-col gap-11 border border-[rgba(10,10,10,0.32)] p-5 xl:order-1">
+        <section className="order-2 flex min-w-0 flex-1 flex-col gap-11 rounded-[3px] border border-[rgba(10,10,10,0.32)] p-5 xl:order-1">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-[32px] font-light leading-[0.9] tracking-[-0.09em]">
               Этапы проекта
@@ -238,7 +251,7 @@ export function ProjectDetailPage() {
               Создать этап
             </button>
           </div>
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-3">
             {stages.map((s, i) => (
               <StageRow
                 key={s.id}
@@ -252,22 +265,29 @@ export function ProjectDetailPage() {
           </div>
         </section>
 
-        <aside className="order-1 w-full shrink-0 border border-[rgba(10,10,10,0.32)] p-5 xl:order-2 xl:max-w-[445px]">
-          <div className="flex flex-col gap-3">
-            <h2 className="text-[32px] font-light leading-[0.9] tracking-[-0.09em]">
-              {project.title}
-            </h2>
-            <p className="text-base font-light leading-[0.9] tracking-[-0.09em]">
-              {project.client}
-            </p>
+        <aside className="order-1 w-full shrink-0 rounded-[3px] border border-[rgba(10,10,10,0.32)] p-5 xl:order-2 xl:max-w-[445px]">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1 flex flex-col gap-3">
+              <h2 className="text-[24px] font-light leading-[0.9] tracking-[-0.09em]">
+                {project.title}
+              </h2>
+              <p className="text-[14px] font-light leading-[0.9] tracking-[-0.09em]">
+                {project.client}
+              </p>
+            </div>
+            {cardSection ? (
+              <span className="max-w-[45%] shrink-0 pt-0.5 text-right text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink/65">
+                {cardSection}
+              </span>
+            ) : null}
           </div>
           <div className="mt-6 flex flex-col gap-2.5">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-5">
-                {tags.map((label, i) => (
+              <div className="flex flex-wrap items-center gap-2">
+                {cardChipTags.map((label, i) => (
                   <span
                     key={`${label}-${i}`}
-                    className="text-[10px] font-light uppercase leading-none tracking-[-0.02em]"
+                    className={projectCardTagChipClass(label)}
                   >
                     {label}
                   </span>

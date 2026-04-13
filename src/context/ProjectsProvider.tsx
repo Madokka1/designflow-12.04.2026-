@@ -39,6 +39,7 @@ import {
   syncStagedProjectAmount,
 } from '../lib/stageCostSum'
 import { mergeProjectsBySlug, mergeRecordsById } from '../lib/portfolioMerge'
+import { normalizeWorkspaceTask } from '../lib/workspaceTaskNormalize'
 import {
   deleteClientRemote,
   deleteProjectFromSupabase,
@@ -339,7 +340,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     setFinanceTransactions(payload.financeTransactions)
     setCalendarCustomEvents(payload.calendarCustomEvents)
     setClients(payload.clients ?? [])
-    setTasks(payload.tasks ?? [])
+    setTasks((payload.tasks ?? []).map((t) => normalizeWorkspaceTask(t)))
     setTemplates(payload.templates ?? [])
   }, [])
 
@@ -354,7 +355,11 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       mergeRecordsById(prev, payload.calendarCustomEvents),
     )
     setClients((prev) => mergeRecordsById(prev, payload.clients ?? []))
-    setTasks((prev) => mergeRecordsById(prev, payload.tasks ?? []))
+    setTasks((prev) =>
+      mergeRecordsById(prev, payload.tasks ?? []).map((t) =>
+        normalizeWorkspaceTask(t),
+      ),
+    )
     setTemplates((prev) => mergeRecordsById(prev, payload.templates ?? []))
   }, [])
 
@@ -414,7 +419,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         setFinanceTransactions(bundle.financeTransactions)
         setCalendarCustomEvents(bundle.calendarCustomEvents)
         setClients(bundle.clients ?? [])
-        setTasks(bundle.tasks ?? [])
+        setTasks((bundle.tasks ?? []).map((t) => normalizeWorkspaceTask(t)))
         setTemplates(bundle.templates ?? [])
         portfolioLoadedFor.current = userId
         setPortfolioSync({ kind: 'saved', at: Date.now() })
@@ -672,12 +677,8 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
   )
 
   const headerTimerSeconds = useMemo(() => {
-    let t = 0
-    for (const p of projects) {
-      t += sumStagesSeconds(p.stages)
-    }
-    return t + sessionElapsed
-  }, [projects, sessionElapsed])
+    return sessionElapsed
+  }, [sessionElapsed])
 
   const getProjectTrackedSeconds = useCallback(
     (projectSlug: string) => {
@@ -1023,7 +1024,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       const sortOrder =
         partial.sortOrder ??
         tasksRef.current.reduce((m, t) => Math.max(m, t.sortOrder), -1) + 1
-      const row: WorkspaceTask = {
+      const row = normalizeWorkspaceTask({
         id,
         title: partial.title.trim() || 'Задача',
         done: partial.done ?? false,
@@ -1031,7 +1032,10 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         projectSlug: partial.projectSlug ?? null,
         labels: partial.labels ?? [],
         sortOrder,
-      }
+        comment: partial.comment ?? '',
+        reminderPreset: partial.reminderPreset ?? 'none',
+        reminderAtCustom: partial.reminderAtCustom ?? '',
+      })
       setTasks((prev) => [...prev, row])
       if (client && userId && !readOnly) {
         setPortfolioSync({ kind: 'saving' })

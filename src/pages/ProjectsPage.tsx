@@ -2,7 +2,11 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CreateProjectModal } from '../components/CreateProjectModal'
 import { PageTabButton, PageTabList } from '../components/PageTabs'
-import { getProjectSection } from '../lib/projectSection'
+import {
+  getProjectSection,
+  partitionProjectCardTags,
+} from '../lib/projectSection'
+import { projectCardTagChipClass } from '../lib/tagChipClasses'
 import { useProjects } from '../hooks/useProjects'
 import type { Project } from '../types/project'
 
@@ -18,35 +22,45 @@ const FILTERS = [
 const CARD_FALLBACK_TAGS = ['Ожидает оплаты', 'В работе', 'Разработка'] as const
 
 function ProjectCard({ project }: { project: Project }) {
+  const tags = project.tags ?? CARD_FALLBACK_TAGS
+  const { section, chipTags } = partitionProjectCardTags(tags)
+
   return (
     <Link
       to={`/projects/${project.slug}`}
       className="block text-left outline-none ring-ink transition-colors duration-300 focus-visible:ring-2"
     >
-      <article className="flex min-h-[220px] flex-col justify-between border border-[rgba(10,10,10,0.32)] transition-[background-color,border-color] duration-300 ease-out hover:border-[rgba(10,10,10)] hover:bg-ink/[0.02]">
+      <article className="flex min-h-[220px] flex-col justify-between rounded-[3px] border border-[rgba(10,10,10,0.32)] transition-[background-color,border-color] duration-300 ease-out hover:border-[rgba(10,10,10)] hover:bg-ink/[0.02]">
         <div className="flex h-full min-h-[220px] flex-col justify-between p-5">
-          <div className="flex flex-col gap-3">
-            <h3 className="text-[32px] font-light leading-[0.9] tracking-[-0.09em]">
-              {project.title}
-            </h3>
-            <p className="text-base font-light leading-[0.9] tracking-[-0.09em] text-ink/90">
-              {project.client}
-            </p>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1 flex flex-col gap-3">
+              <h3 className="text-[24px] font-light leading-[0.9] tracking-[-0.06em]">
+                {project.title}
+              </h3>
+              <p className="text-[14px] font-light leading-[0.9] tracking-[-0.06em] text-ink/90">
+                {project.client}
+              </p>
+            </div>
+            {section ? (
+              <span className="max-w-[45%] shrink-0 pt-0.5 text-right text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink/65">
+                {section}
+              </span>
+            ) : null}
           </div>
 
           <div className="mt-6 flex flex-col gap-2.5">
           <div className="flex items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-5">
-              {(project.tags ?? CARD_FALLBACK_TAGS).map((label, i) => (
+            <div className="flex flex-wrap items-center gap-2">
+              {chipTags.map((label, i) => (
                 <span
                   key={`${label}-${i}`}
-                  className="text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink"
+                  className={projectCardTagChipClass(label)}
                 >
                   {label}
                 </span>
               ))}
             </div>
-            <span className="shrink-0 text-base font-light leading-[0.9] tracking-[-0.09em]">
+            <span className="shrink-0 text-base font-light leading-[0.9] tracking-[-0.06em]">
               {project.amount}
             </span>
           </div>
@@ -117,7 +131,7 @@ export function ProjectsPage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {filteredProjects.length === 0 ? (
               <p className="col-span-full text-base font-light text-ink/60">
                 Нет проектов в этом разделе
