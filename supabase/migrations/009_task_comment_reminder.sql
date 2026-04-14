@@ -11,3 +11,6 @@ alter table public.tasks
 comment on column public.tasks.comment is 'Текст комментария к задаче';
 comment on column public.tasks.reminder_preset is 'none | 1h | 1d | 1w | custom';
 comment on column public.tasks.reminder_at_custom is 'ISO 8601 для preset=custom';
+
+-- Обновить кэш схемы PostgREST (иначе API может отвечать «column not in schema cache»)
+notify pgrst, 'reload schema';

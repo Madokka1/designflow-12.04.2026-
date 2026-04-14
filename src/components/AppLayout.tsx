@@ -223,8 +223,15 @@ export function AppLayout() {
             ? portfolio.message
             : null
 
+  const isNoteEditorRoute =
+    location.pathname.startsWith('/notes/') && location.pathname !== '/notes'
+
   return (
-    <div className="relative min-h-svh w-full overflow-x-hidden bg-surface text-ink">
+    <div
+      className={`relative w-full overflow-x-hidden bg-surface text-ink ${
+        isNoteEditorRoute ? 'flex h-dvh flex-col overflow-hidden' : 'min-h-svh'
+      }`}
+    >
       <HeaderPattern />
 
       <header className="relative z-50 border-b border-ink/10 bg-surface">
@@ -365,7 +372,12 @@ export function AppLayout() {
 
       <CommandPalette />
 
-      <div key={location.pathname} className="ui-page-enter">
+      <div
+        key={location.pathname}
+        className={`ui-page-enter ${
+          isNoteEditorRoute ? 'min-h-0 flex-1 overflow-hidden' : ''
+        }`}
+      >
         <Outlet />
       </div>
 

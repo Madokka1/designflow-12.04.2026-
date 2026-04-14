@@ -30,9 +30,7 @@ const AI_SECTION = {
       hint: 'Мозговой шту…',
       icon: '✎',
       block: () =>
-        buildBlock('paragraph', {
-          text: 'Мозговой штурм:\n',
-        }),
+        buildBlock('todo'),
     },
     {
       id: 'article',
@@ -40,9 +38,7 @@ const AI_SECTION = {
       hint: 'Статья или пост',
       icon: '✎',
       block: () =>
-        buildBlock('paragraph', {
-          text: 'Черновик статьи:\n',
-        }),
+        buildBlock('todo'),
     },
   ],
 }
@@ -51,62 +47,13 @@ const BASIC_SECTION = {
   title: 'Базовые',
   items: [
     {
-      id: 'text',
-      label: 'Текст',
-      hint: 'Текст',
-      icon: 'Aa',
-      block: () => buildBlock('paragraph'),
-    },
-    {
       id: 'todo',
       label: 'Список задач',
       hint: 'Список задач',
       icon: '☑',
       block: () => buildBlock('todo'),
     },
-    {
-      id: 'page',
-      label: 'Страница',
-      hint: 'Страница',
-      icon: '▢',
-      block: () =>
-        buildBlock('paragraph', { text: 'Вложенная страница: ' }),
-    },
-    {
-      id: 'linkpage',
-      label: 'Ссылка на страницу',
-      hint: 'Ссылка на…',
-      icon: '↗',
-      block: () =>
-        buildBlock('paragraph', { text: 'Ссылка на страницу: ' }),
-    },
-    {
-      id: 'h1',
-      label: 'Заголовок 1',
-      hint: 'h1',
-      icon: 'H1',
-      block: () => buildBlock('h1'),
-    },
   ],
-}
-
-const TYPE_SECTION = {
-  title: 'Типографика',
-  items: (
-    [
-      ['h2', 'Заголовок 2', 'h2'],
-      ['h3', 'Заголовок 3', 'h3'],
-      ['h4', 'Заголовок 4', 'h4'],
-      ['h5', 'Заголовок 5', 'h5'],
-      ['h6', 'Заголовок 6', 'h6'],
-    ] as const
-  ).map(([type, label, hint]) => ({
-    id: type,
-    label,
-    hint,
-    icon: type.toUpperCase(),
-    block: () => buildBlock(type as NoteBlockType),
-  })),
 }
 
 const CODE_SECTION = {
@@ -166,7 +113,6 @@ const MEDIA_SECTION = {
 const SECTIONS = [
   AI_SECTION,
   BASIC_SECTION,
-  TYPE_SECTION,
   CODE_SECTION,
   MEDIA_SECTION,
 ]

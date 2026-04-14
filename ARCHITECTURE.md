@@ -69,7 +69,8 @@ flowchart TB
 
 ## База данных (Supabase)
 
-- Исполняемый скрипт: **`supabase/migrations/001_portfolio_schema.sql`** — таблицы `profiles`, `projects`, `project_stages`, `finance_transactions`, `calendar_custom_events`, `notes`, триггеры (профиль при регистрации, `updated_at`), **RLS** по `auth.uid()`.
+- Миграции в **`supabase/migrations/`** — выполняйте **`001_…sql`–`009_…sql`** по порядку. На экране регистрации и в настройках можно скопировать **объединённый** скрипт (см. `src/lib/portfolioSchemaSql.ts`).
+- **`001_portfolio_schema.sql`** — базовые таблицы `profiles`, `projects`, `project_stages`, `finance_transactions`, `calendar_custom_events`, `notes`, триггеры (профиль при регистрации, `updated_at`), **RLS** по `auth.uid()`; последующие файлы расширяют профиль, рабочее пространство, Telegram, задачи.
 - Связь этапов с пользователем — через `projects.user_id`.
 - Ключи API не хранятся в таблицах; anon key только на клиенте (или в секретах CI).
 

@@ -5,7 +5,6 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  type MouseEvent,
   type ReactNode,
 } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
@@ -22,12 +21,126 @@ import {
 } from '../components/notes/BlockInsertMenu'
 import { NoteBlockRead } from '../components/notes/NoteBlockRead'
 import { VideoEmbed } from '../components/notes/VideoEmbed'
-import { createEmptyBlock, newBlockId } from '../context/notesContext'
+import { newBlockId } from '../context/notesContext'
 import { useNotesContext } from '../hooks/useNotesContext'
 import { useProjects } from '../hooks/useProjects'
 import type { Note, NoteBlock, NoteTodoItem } from '../types/note'
 
 const BORDER = 'border-card-border'
+
+function useAutosizeTextarea(
+  ref: React.RefObject<HTMLTextAreaElement | null>,
+  value: string,
+) {
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    // Сначала "сжать", потом выставить по контенту.
+    el.style.height = '0px'
+    const next = Math.max(el.scrollHeight, 0)
+    el.style.height = `${next}px`
+  }, [ref, value])
+}
+
+function escapeHtmlText(s: string): string {
+  return s
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
+function paragraphTextToHtml(s: string): string {
+  const t = s.trim()
+  if (!t) return ''
+  // Старые заметки: обычный текст → <br> переносы.
+  return escapeHtmlText(s).replaceAll('\n', '<br>')
+}
+
+const ALLOWED_TAGS = new Set([
+  'BR',
+  'P',
+  'H1',
+  'H2',
+  'H3',
+  'H4',
+  'H5',
+  'H6',
+  'UL',
+  'OL',
+  'LI',
+  'B',
+  'STRONG',
+  'I',
+  'EM',
+  'U',
+  'S',
+  'DEL',
+  'A',
+  'SPAN',
+])
+
+function sanitizeRichHtml(html: string): string {
+  if (!html.trim()) return ''
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  const body = doc.body
+
+  const walk = (node: Node) => {
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const el = node as HTMLElement
+      if (!ALLOWED_TAGS.has(el.tagName)) {
+        const frag = doc.createDocumentFragment()
+        while (el.firstChild) frag.appendChild(el.firstChild)
+        el.replaceWith(frag)
+        return
+      }
+      if (el.tagName === 'A') {
+        const href = (el.getAttribute('href') ?? '').trim()
+        // только http(s)
+        if (!/^https?:\/\//i.test(href)) {
+          el.removeAttribute('href')
+        }
+        el.setAttribute('target', '_blank')
+        el.setAttribute('rel', 'noopener noreferrer')
+      }
+      // чистим все атрибуты кроме href/target/rel у A
+      for (const attr of [...el.attributes]) {
+        const name = attr.name.toLowerCase()
+        if (el.tagName === 'A' && (name === 'href' || name === 'target' || name === 'rel')) {
+          continue
+        }
+        el.removeAttribute(attr.name)
+      }
+    }
+    for (const child of [...node.childNodes]) walk(child)
+  }
+  // Важно: не "заменять" сам body, иначе потеряем ссылку на него.
+  for (const child of [...body.childNodes]) walk(child)
+
+  // Нормализуем пустые <div>/<p> в <br> и убираем внешние обёртки.
+  const out = body.innerHTML
+    .replaceAll(/<(div|p)><br><\/(div|p)>/gi, '<br>')
+    .replaceAll(/<\/?div>/gi, '')
+  return out.trim()
+}
+
+function selectionIsInside(root: HTMLElement | null): boolean {
+  if (!root) return false
+  const sel = window.getSelection()
+  if (!sel || sel.rangeCount === 0) return false
+  const range = sel.getRangeAt(0)
+  const node = range.commonAncestorContainer
+  const el = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement
+  return !!el && root.contains(el)
+}
+
+function formatBlockValue(raw: string): string {
+  const v = raw.trim().toLowerCase()
+  if (!v) return 'p'
+  if (/^h[1-6]$/.test(v)) return v
+  return 'p'
+}
 
 function formatCreated(iso: string) {
   try {
@@ -94,6 +207,13 @@ export function NoteEditorPage() {
   const [metaModalOpen, setMetaModalOpen] = useState(false)
   /** Индекс вставки без вложенного setState (избегает двойного вызова в Strict Mode) */
   const insertMenuRef = useRef<{ blockIndex: number } | null>(null)
+  const bodyRef = useRef<HTMLDivElement | null>(null)
+  const bodyHydratedRef = useRef(false)
+  const [rtToolbar, setRtToolbar] = useState<{
+    open: boolean
+    top: number
+    left: number
+  }>({ open: false, top: 0, left: 0 })
 
   useLayoutEffect(() => {
     if (!noteSlug || !note) {
@@ -112,12 +232,94 @@ export function NoteEditorPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- note.blocks обновляются из draft
   }, [noteSlug, note?.id])
 
+  useLayoutEffect(() => {
+    if (!draft) return
+    const el = bodyRef.current
+    if (!el) return
+    // Гидрируем HTML в contentEditable, когда он (пере)смонтировался пустым
+    // (например, после переключения Предпросмотр → Редактирование).
+    if (previewMode) return
+    const current = el.innerHTML.trim()
+    if (bodyHydratedRef.current && current) return
+    el.innerHTML = sanitizeRichHtml(draft.bodyHtml ?? '')
+    bodyHydratedRef.current = true
+  }, [draft?.id, previewMode])
+
+  useEffect(() => {
+    // После возврата из предпросмотра contentEditable создаётся заново — разрешаем гидрацию.
+    if (!previewMode) {
+      bodyHydratedRef.current = false
+    }
+  }, [previewMode, draft?.id])
+
+  useEffect(() => {
+    const updateToolbar = () => {
+      const root = bodyRef.current
+      const sel = window.getSelection()
+      if (!root || !sel || sel.rangeCount === 0 || sel.isCollapsed) {
+        setRtToolbar((s) => (s.open ? { ...s, open: false } : s))
+        return
+      }
+      if (!selectionIsInside(root)) {
+        setRtToolbar((s) => (s.open ? { ...s, open: false } : s))
+        return
+      }
+      const range = sel.getRangeAt(0)
+      const rect = range.getBoundingClientRect()
+      if (!rect || rect.width === 0 && rect.height === 0) {
+        setRtToolbar((s) => (s.open ? { ...s, open: false } : s))
+        return
+      }
+      // Позиционируем по центру над выделением.
+      const top = Math.max(10, rect.top - 44)
+      const left = Math.max(10, Math.min(window.innerWidth - 10, rect.left + rect.width / 2))
+      setRtToolbar({ open: true, top, left })
+    }
+
+    const onSel = () => updateToolbar()
+    document.addEventListener('selectionchange', onSel)
+    window.addEventListener('scroll', onSel, true)
+    window.addEventListener('resize', onSel)
+    return () => {
+      document.removeEventListener('selectionchange', onSel)
+      window.removeEventListener('scroll', onSel, true)
+      window.removeEventListener('resize', onSel)
+    }
+  }, [])
+
+  const applyBodyHtmlFromDom = useCallback(() => {
+    const el = bodyRef.current
+    if (!el || !noteSlug) return
+    const html = sanitizeRichHtml(el.innerHTML)
+    setDraft((d) => (d ? { ...d, bodyHtml: html } : d))
+    updateNote(noteSlug, { bodyHtml: html })
+  }, [noteSlug, updateNote])
+
+  const exec = useCallback(
+    (cmd: string, value?: string) => {
+      // execCommand работает только по фокусу в contentEditable
+      bodyRef.current?.focus()
+      if (value !== undefined) {
+        if (cmd === 'formatBlock') {
+          const tag = formatBlockValue(value)
+          document.execCommand(cmd, false, `<${tag}>`)
+        } else {
+          document.execCommand(cmd, false, value)
+        }
+      }
+      else document.execCommand(cmd)
+      applyBodyHtmlFromDom()
+    },
+    [applyBodyHtmlFromDom],
+  )
+
   const persist = useCallback(
     (next: Note) => {
       if (!noteSlug) return
       updateNote(noteSlug, {
         title: next.title,
         description: next.description,
+        bodyHtml: next.bodyHtml ?? '',
         blocks: next.blocks,
         attachedProjectSlugs: [...(next.attachedProjectSlugs ?? [])],
       })
@@ -196,14 +398,7 @@ export function NoteEditorPage() {
     setDraft((d) => {
       if (!d) return d
       const blocks = [...d.blocks]
-      const cur = blocks[i]
-      const replace =
-        cur?.type === 'paragraph' && !cur.text.trim()
-      if (replace) {
-        blocks[i] = { ...block, id: cur.id }
-      } else {
-        blocks.splice(i + 1, 0, block)
-      }
+      blocks.splice(i + 1, 0, block)
       return { ...d, blocks }
     })
   }, [])
@@ -221,9 +416,7 @@ export function NoteEditorPage() {
     setDraft((d) => {
       if (!d) return d
       const next = d.blocks.filter((_, i) => i !== index)
-      const blocks =
-        next.length > 0 ? next : [createEmptyBlock('paragraph')]
-      return { ...d, blocks }
+      return { ...d, blocks: next }
     })
   }, [])
 
@@ -236,7 +429,7 @@ export function NoteEditorPage() {
   }
 
   return (
-    <main className="relative z-10 mx-auto w-full max-w-[1840px] px-4 pb-16 pt-8 sm:px-10 sm:pt-10">
+    <main className="relative z-10 mx-auto flex h-full w-full max-w-[1840px] flex-1 flex-col overflow-hidden px-4 pt-8 sm:px-10 sm:pt-10">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex max-w-[487px] flex-col gap-5">
           <h1 className="text-[clamp(2rem,5vw,4rem)] font-light leading-[0.9] tracking-[-0.09em]">
@@ -303,7 +496,7 @@ export function NoteEditorPage() {
         </div>
       </div>
 
-      <div className="mt-10 flex flex-col gap-6 xl:flex-row xl:items-start xl:gap-10">
+      <div className="mt-10 mb-10 flex min-h-0 flex-1 flex-col gap-6 xl:flex-row xl:items-start xl:gap-10">
         <aside
           className={`w-full shrink-0 border ${BORDER} p-5 xl:max-w-[445px]`}
         >
@@ -448,6 +641,7 @@ export function NoteEditorPage() {
                         updateNote(noteSlug, {
                           title: snap.title,
                           description: snap.description,
+                        bodyHtml: (snap as { bodyHtml?: string }).bodyHtml ?? '',
                           blocks,
                           attachedProjectSlugs: attached,
                         })
@@ -457,6 +651,7 @@ export function NoteEditorPage() {
                                 ...d,
                                 title: snap.title,
                                 description: snap.description,
+                              bodyHtml: (snap as { bodyHtml?: string }).bodyHtml ?? '',
                                 blocks,
                                 attachedProjectSlugs: attached,
                               }
@@ -487,13 +682,174 @@ export function NoteEditorPage() {
 
         <section
           id="note-body"
-          className={`min-w-0 flex-1 border ${BORDER} p-5 sm:p-5`}
+          className={`min-w-0 flex h-full flex-1 flex-col overflow-y-auto border ${BORDER} px-5 pb-10 pt-5 sm:px-5 sm:pb-10 sm:pt-5`}
         >
           <h2 className="text-[32px] font-light leading-[0.9] tracking-[-0.09em]">
             Содержимое
           </h2>
 
-          <div className="mt-10 flex flex-col gap-2 border-t border-[rgba(10,10,10,0.32)] pt-5">
+          <div className="group mt-10 flex min-h-0 flex-1 flex-col gap-2 border-t border-[rgba(10,10,10,0.32)] pt-5">
+            {rtToolbar.open && !previewMode ? (
+              <div
+                className="fixed z-[95] -translate-x-1/2 rounded-lg border border-card-border bg-surface/95 p-1 shadow-[0_8px_32px_rgba(10,10,10,0.12)] backdrop-blur-[20px]"
+                style={{ top: rtToolbar.top, left: rtToolbar.left }}
+                role="toolbar"
+                aria-label="Форматирование"
+              >
+                <div className="flex items-center gap-1">
+                  <select
+                    className="h-8 rounded-md border border-card-border bg-surface px-2 text-xs font-light text-ink"
+                    defaultValue="P"
+                    onChange={(e) => exec('formatBlock', e.target.value)}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    aria-label="Стиль"
+                  >
+                    <option value="P">Текст</option>
+                    <option value="H1">H1</option>
+                    <option value="H2">H2</option>
+                    <option value="H3">H3</option>
+                    <option value="H4">H4</option>
+                    <option value="H5">H5</option>
+                    <option value="H6">H6</option>
+                  </select>
+
+                  <div className="mx-1 h-6 w-px bg-ink/10" aria-hidden />
+
+                  <button
+                    type="button"
+                    className="h-8 rounded-md px-2 text-xs font-light text-ink hover:bg-ink/[0.05]"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => exec('bold')}
+                    aria-label="Жирный"
+                  >
+                    <span className="font-semibold">B</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="h-8 rounded-md px-2 text-xs font-light text-ink hover:bg-ink/[0.05]"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => exec('italic')}
+                    aria-label="Курсив"
+                  >
+                    <span className="italic">I</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="h-8 rounded-md px-2 text-xs font-light text-ink hover:bg-ink/[0.05]"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => exec('underline')}
+                    aria-label="Подчёркнутый"
+                  >
+                    <span className="underline underline-offset-2">U</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="h-8 rounded-md px-2 text-xs font-light text-ink hover:bg-ink/[0.05]"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => exec('strikeThrough')}
+                    aria-label="Зачёркнутый"
+                  >
+                    <span className="line-through">S</span>
+                  </button>
+
+                  <div className="mx-1 h-6 w-px bg-ink/10" aria-hidden />
+
+                  <button
+                    type="button"
+                    className="h-8 rounded-md px-2 text-xs font-light text-ink hover:bg-ink/[0.05]"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      const url = window.prompt('Ссылка (https://...)', 'https://')?.trim()
+                      if (!url) return
+                      exec('createLink', url)
+                    }}
+                    aria-label="Ссылка"
+                  >
+                    🔗
+                  </button>
+
+                  <button
+                    type="button"
+                    className="h-8 rounded-md px-2 text-xs font-light text-ink hover:bg-ink/[0.05]"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => exec('insertUnorderedList')}
+                    aria-label="Маркированный список"
+                  >
+                    ••
+                  </button>
+                  <button
+                    type="button"
+                    className="h-8 rounded-md px-2 text-xs font-light text-ink hover:bg-ink/[0.05]"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => exec('insertOrderedList')}
+                    aria-label="Нумерованный список"
+                  >
+                    1.
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {previewMode ? (
+              <div
+                className="whitespace-pre-wrap text-base font-light leading-[1.45] tracking-[-0.09em] text-ink [&_h1]:text-[32px] [&_h1]:leading-[0.9] [&_h1]:tracking-[-0.09em] [&_h1]:font-light [&_h1]:mt-6 [&_h1]:mb-2 [&_h2]:text-[28px] [&_h2]:leading-[0.9] [&_h2]:tracking-[-0.09em] [&_h2]:font-light [&_h2]:mt-5 [&_h2]:mb-2 [&_h3]:text-2xl [&_h3]:leading-[0.95] [&_h3]:tracking-[-0.07em] [&_h3]:font-light [&_h3]:mt-4 [&_h3]:mb-2 [&_h4]:text-xl [&_h4]:leading-[0.95] [&_h4]:tracking-[-0.06em] [&_h4]:font-light [&_h4]:mt-4 [&_h4]:mb-1 [&_h5]:text-lg [&_h5]:leading-[1.05] [&_h5]:tracking-[-0.05em] [&_h5]:font-light [&_h5]:mt-3 [&_h5]:mb-1 [&_h6]:text-base [&_h6]:leading-[1.1] [&_h6]:tracking-[-0.05em] [&_h6]:font-light [&_h6]:mt-3 [&_h6]:mb-1 [&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1"
+                dangerouslySetInnerHTML={{
+                  __html: sanitizeRichHtml(draft.bodyHtml ?? ''),
+                }}
+              />
+            ) : (
+              <div className="flex gap-2">
+                <div className="mt-1 flex shrink-0 flex-col gap-0.5 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                  <button
+                    type="button"
+                    className="flex h-7 w-7 items-center justify-center rounded text-sm text-ink/40 hover:bg-ink/5 hover:text-ink"
+                    aria-label="Вставить блок"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      openMenu(-1, e.currentTarget)
+                    }}
+                  >
+                    +
+                  </button>
+                </div>
+                <div
+                  ref={bodyRef}
+                  contentEditable
+                  suppressContentEditableWarning
+                  role="textbox"
+                  aria-multiline="true"
+                  data-placeholder="Начните писать…"
+                  className="min-h-[40px] w-full bg-transparent py-1 text-base font-light leading-[1.45] tracking-[-0.09em] text-ink outline-none [overflow-wrap:anywhere] [&_h1]:text-[32px] [&_h1]:leading-[0.9] [&_h1]:tracking-[-0.09em] [&_h1]:font-light [&_h1]:mt-6 [&_h1]:mb-2 [&_h2]:text-[28px] [&_h2]:leading-[0.9] [&_h2]:tracking-[-0.09em] [&_h2]:font-light [&_h2]:mt-5 [&_h2]:mb-2 [&_h3]:text-2xl [&_h3]:leading-[0.95] [&_h3]:tracking-[-0.07em] [&_h3]:font-light [&_h3]:mt-4 [&_h3]:mb-2 [&_h4]:text-xl [&_h4]:leading-[0.95] [&_h4]:tracking-[-0.06em] [&_h4]:font-light [&_h4]:mt-4 [&_h4]:mb-1 [&_h5]:text-lg [&_h5]:leading-[1.05] [&_h5]:tracking-[-0.05em] [&_h5]:font-light [&_h5]:mt-3 [&_h5]:mb-1 [&_h6]:text-base [&_h6]:leading-[1.1] [&_h6]:tracking-[-0.05em] [&_h6]:font-light [&_h6]:mt-3 [&_h6]:mb-1 [&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1"
+                  onFocus={() => {
+                    bodyHydratedRef.current = true
+                  }}
+                  onKeyDown={(e) => {
+                    if (!(e.metaKey || e.ctrlKey) || !e.altKey) return
+                    const key = e.key.toLowerCase()
+                    if (key === '0') {
+                      e.preventDefault()
+                      document.execCommand('formatBlock', false, 'P')
+                      return
+                    }
+                    if (!/^[1-6]$/.test(key)) return
+                    e.preventDefault()
+                    document.execCommand('formatBlock', false, `H${key}`)
+                  }}
+                  onInput={(e) => {
+                    const html = sanitizeRichHtml(e.currentTarget.innerHTML)
+                    setDraft((d) => (d ? { ...d, bodyHtml: html } : d))
+                    if (noteSlug) updateNote(noteSlug, { bodyHtml: html })
+                  }}
+                  onPaste={(e) => {
+                    e.preventDefault()
+                    const text = e.clipboardData.getData('text/plain')
+                    const safe = paragraphTextToHtml(text)
+                    document.execCommand('insertHTML', false, safe)
+                  }}
+                />
+              </div>
+            )}
+
             {previewMode
               ? draft.blocks.map((block) => (
                   <div
@@ -513,6 +869,7 @@ export function NoteEditorPage() {
                     onRemove={() => removeBlock(index)}
                   />
                 ))}
+            <div aria-hidden className="h-10" />
           </div>
         </section>
       </div>
@@ -561,7 +918,8 @@ function BlockRow({
   onRemove: () => void
 }) {
   const imageFileInputId = useId()
-  const isEmptyPara = block.type === 'paragraph' && !block.text.trim()
+  const codeTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+  useAutosizeTextarea(codeTextareaRef, block.type === 'code' ? block.text : '')
 
   const gutter = (
     <div className="mt-1 flex shrink-0 flex-col gap-0.5 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
@@ -590,96 +948,20 @@ function BlockRow({
     </div>
   )
 
-  const openFromLine = (e: MouseEvent<HTMLElement>) => {
-    if (isEmptyPara) {
-      e.stopPropagation()
-      onOpenMenu(index, e.currentTarget)
-    }
-  }
-
   const baseInput =
     'w-full border-0 bg-transparent font-light tracking-[-0.04em] text-ink outline-none placeholder:text-ink/35 focus:ring-0'
 
   let body: ReactNode
   switch (block.type) {
     case 'h1':
-      body = (
-        <input
-          className={`${baseInput} text-[32px] leading-[0.9]`}
-          value={block.text}
-          placeholder="Заголовок H1"
-          onChange={(e) => onChange({ ...block, text: e.target.value })}
-        />
-      )
-      break
     case 'h2':
-      body = (
-        <input
-          className={`${baseInput} text-[28px] leading-[0.9]`}
-          value={block.text}
-          placeholder="Заголовок H2"
-          onChange={(e) => onChange({ ...block, text: e.target.value })}
-        />
-      )
-      break
     case 'h3':
-      body = (
-        <input
-          className={`${baseInput} text-2xl leading-[0.9]`}
-          value={block.text}
-          placeholder="Заголовок H3"
-          onChange={(e) => onChange({ ...block, text: e.target.value })}
-        />
-      )
-      break
     case 'h4':
-      body = (
-        <input
-          className={`${baseInput} text-xl leading-[0.9]`}
-          value={block.text}
-          placeholder="Заголовок H4"
-          onChange={(e) => onChange({ ...block, text: e.target.value })}
-        />
-      )
-      break
     case 'h5':
-      body = (
-        <input
-          className={`${baseInput} text-lg leading-[0.9]`}
-          value={block.text}
-          placeholder="Заголовок H5"
-          onChange={(e) => onChange({ ...block, text: e.target.value })}
-        />
-      )
-      break
     case 'h6':
-      body = (
-        <input
-          className={`${baseInput} text-base leading-[0.9]`}
-          value={block.text}
-          placeholder="Заголовок H6"
-          onChange={(e) => onChange({ ...block, text: e.target.value })}
-        />
-      )
-      break
     case 'paragraph':
-      body = isEmptyPara ? (
-        <button
-          type="button"
-          className={`${baseInput} w-full cursor-text py-2 text-left text-base leading-[0.9] text-ink/35`}
-          onClick={openFromLine}
-        >
-          Найти и вставить
-        </button>
-      ) : (
-        <textarea
-          className={`${baseInput} min-h-[4rem] resize-y py-2 text-base leading-[1.4]`}
-          value={block.text}
-          placeholder="Параграф"
-          rows={3}
-          onChange={(e) => onChange({ ...block, text: e.target.value })}
-        />
-      )
+      // Текстовые блоки больше не используются (теперь есть общий холст bodyHtml).
+      body = null
       break
     case 'todo':
       body = (
@@ -731,7 +1013,8 @@ function BlockRow({
             <option value="js">JS</option>
           </select>
           <textarea
-            className={`${baseInput} min-h-[120px] resize-y rounded bg-[rgba(10,10,10,0.08)] p-4 font-mono text-sm leading-relaxed`}
+            ref={codeTextareaRef}
+            className={`${baseInput} min-h-[120px] resize-none overflow-hidden rounded bg-[rgba(10,10,10,0.08)] p-4 font-mono text-sm leading-relaxed`}
             value={block.text}
             placeholder={
               block.language === 'css'

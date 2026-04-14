@@ -1439,15 +1439,7 @@ export function SettingsPage() {
 
             <SettingsCard
               title="SQL для создания базы"
-              subtitle={
-                <>
-                  {SUPABASE_SQL_INSTRUCTION} Исходник в репозитории:{' '}
-                  <code className="rounded bg-ink/[0.06] px-1 py-0.5 font-mono text-[11px]">
-                    supabase/migrations/001_portfolio_schema.sql
-                  </code>
-                  .
-                </>
-              }
+              subtitle={SUPABASE_SQL_INSTRUCTION}
             >
               <textarea
                 readOnly

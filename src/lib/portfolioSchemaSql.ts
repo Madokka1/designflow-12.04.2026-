@@ -5,13 +5,18 @@ import readOnlyModeSql from '../../supabase/migrations/004_read_only_mode.sql?ra
 import workspaceExtrasSql from '../../supabase/migrations/005_workspace_extras.sql?raw'
 import telegramNotificationsSql from '../../supabase/migrations/006_telegram_notifications.sql?raw'
 import telegramNotifyCreatesSql from '../../supabase/migrations/007_telegram_notify_creates.sql?raw'
+import projectEmployeeHourlyRateSql from '../../supabase/migrations/008_project_employee_hourly_rate.sql?raw'
+import taskCommentReminderSql from '../../supabase/migrations/009_task_comment_reminder.sql?raw'
+import taskTelegramRemindersSql from '../../supabase/migrations/010_task_telegram_reminders.sql?raw'
+import notesBodyHtmlSql from '../../supabase/migrations/011_notes_body_html.sql?raw'
 
-/** SQL миграций подряд (001–007) для копирования в Supabase SQL Editor. */
+/** SQL миграций подряд (001–011) для копирования в Supabase SQL Editor. */
 export const PORTFOLIO_SCHEMA_SQL: string =
-  `${portfolioSchemaSql.trim()}\n\n${profilesConnectionSql.trim()}\n\n${profileUiTimerSql.trim()}\n\n${readOnlyModeSql.trim()}\n\n${workspaceExtrasSql.trim()}\n\n${telegramNotificationsSql.trim()}\n\n${telegramNotifyCreatesSql.trim()}\n`
+  `${portfolioSchemaSql.trim()}\n\n${profilesConnectionSql.trim()}\n\n${profileUiTimerSql.trim()}\n\n${readOnlyModeSql.trim()}\n\n${workspaceExtrasSql.trim()}\n\n${telegramNotificationsSql.trim()}\n\n${telegramNotifyCreatesSql.trim()}\n\n${projectEmployeeHourlyRateSql.trim()}\n\n${taskCommentReminderSql.trim()}\n\n${taskTelegramRemindersSql.trim()}\n\n${notesBodyHtmlSql.trim()}\n`
 
 export const SUPABASE_SQL_INSTRUCTION = [
   'Откройте Supabase → SQL Editor, вставьте скрипт и выполните (Run).',
-  'Нужен включённый Auth: строки привязаны к auth.users; триггер создаёт строку в profiles при регистрации.',
+  'Текст для вставки — это миграции 001–011 подряд; исходные файлы — в каталоге supabase/migrations/ (при ручном запуске соблюдайте порядок номеров).',
+  'Нужен включённый Auth: данные привязаны к auth.users; триггер создаёт строку в profiles при регистрации.',
   'Anon key используйте только на клиенте; service_role не храните во фронтенде.',
 ].join(' ')

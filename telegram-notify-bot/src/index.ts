@@ -9,6 +9,12 @@ import {
   fetchUserPortfolioSlice,
   tryMarkDeadlineSent,
 } from './deadlines.js'
+import {
+  collectTasksDueForSend,
+  fetchProfilesForTaskReminders,
+  fetchUserTasksForReminders,
+  tryMarkTaskReminderSent,
+} from './task-reminders.js'
 
 const BOT_TOKEN = process.env.BOT_TOKEN?.trim()
 const SUPABASE_URL = process.env.SUPABASE_URL?.trim()
@@ -17,6 +23,14 @@ const NOTIFY_TZ = process.env.NOTIFY_TIMEZONE?.trim() || 'Europe/Moscow'
 const POLL_MS = Math.max(
   60_000,
   Number(process.env.DEADLINE_POLL_MS) || 3_600_000,
+)
+const TASK_REMINDER_POLL_MS = Math.max(
+  30_000,
+  Number(process.env.TASK_REMINDER_POLL_MS) || 60_000,
+)
+const TASK_REMINDER_CATCHUP_MS = Math.max(
+  60_000,
+  Number(process.env.TASK_REMINDER_CATCHUP_MS) || 86_400_000,
 )
 
 if (!BOT_TOKEN || !SUPABASE_URL || !SERVICE_KEY) {
@@ -170,6 +184,55 @@ async function runDeadlineNotifications(): Promise<void> {
   }
 }
 
+async function runTaskReminderNotifications(): Promise<void> {
+  const now = new Date()
+  let profiles: Awaited<ReturnType<typeof fetchProfilesForTaskReminders>>
+  try {
+    profiles = await fetchProfilesForTaskReminders(supabase)
+  } catch (e) {
+    console.error('[task reminders] fetch profiles', e)
+    return
+  }
+
+  for (const prof of profiles) {
+    const chatId = prof.telegram_chat_id
+    if (chatId == null) continue
+    const chat = typeof chatId === 'string' ? Number(chatId) : chatId
+    if (!Number.isFinite(chat)) continue
+
+    let tasks: Awaited<ReturnType<typeof fetchUserTasksForReminders>>
+    try {
+      tasks = await fetchUserTasksForReminders(supabase, prof.id)
+    } catch (e) {
+      console.error('[task reminders] tasks', prof.id, e)
+      continue
+    }
+
+    const due = collectTasksDueForSend(
+      tasks,
+      now,
+      TASK_REMINDER_POLL_MS,
+      TASK_REMINDER_CATCHUP_MS,
+      NOTIFY_TZ,
+    )
+
+    for (const item of due) {
+      const first = await tryMarkTaskReminderSent(
+        supabase,
+        prof.id,
+        item.taskId,
+        item.reminderAt,
+      )
+      if (!first) continue
+      try {
+        await bot.telegram.sendMessage(chat, `${item.label}\n${item.title}`)
+      } catch (e) {
+        console.warn('[telegram send]', chat, e)
+      }
+    }
+  }
+}
+
 bot.start(async (ctx) => {
   if (!requirePrivateChat(ctx)) return
   const payload = (ctx.startPayload ?? '').trim()
@@ -236,6 +299,9 @@ bot.catch((err) => console.error('[telegraf]', err))
 async function main(): Promise<void> {
   await purgeExpiredLinkTokens()
   void runDeadlineNotifications().catch((e) => console.error('[deadline initial]', e))
+  void runTaskReminderNotifications().catch((e) =>
+    console.error('[task reminders initial]', e),
+  )
 
   setInterval(() => {
     void purgeExpiredLinkTokens()
@@ -245,13 +311,30 @@ async function main(): Promise<void> {
     void runDeadlineNotifications().catch((e) => console.error('[deadline poll]', e))
   }, POLL_MS)
 
+  setInterval(() => {
+    void runTaskReminderNotifications().catch((e) =>
+      console.error('[task reminders poll]', e),
+    )
+  }, TASK_REMINDER_POLL_MS)
+
   // Иначе при установленном webhook long polling не получает апдейты — бот «молчит».
   await bot.telegram.deleteWebhook({ drop_pending_updates: false })
   const me = await bot.telegram.getMe()
   console.log('[telegram] polling как @%s (id %s)', me.username ?? '?', me.id)
 
   await bot.launch()
-  console.log('Telegram-бот запущен (long polling). Дедлайны:', NOTIFY_TZ, 'каждые', POLL_MS, 'мс')
+  console.log(
+    'Telegram-бот запущен (long polling). Дедлайны:',
+    NOTIFY_TZ,
+    'каждые',
+    POLL_MS,
+    'мс; напоминания задач:',
+    'каждые',
+    TASK_REMINDER_POLL_MS,
+    'мс; catchup:',
+    TASK_REMINDER_CATCHUP_MS,
+    'мс',
+  )
 }
 
 void main()

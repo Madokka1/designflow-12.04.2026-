@@ -7,12 +7,17 @@ export type NotesContextValue = {
   /** Заметки, у которых в attachedProjectSlugs есть этот проект */
   getNotesByProjectSlug: (projectSlug: string) => Note[]
   createNote: (
-    partial?: Partial<Pick<Note, 'title' | 'description' | 'attachedProjectSlugs'>>,
+    partial?: Partial<
+      Pick<Note, 'title' | 'description' | 'bodyHtml' | 'attachedProjectSlugs'>
+    >,
   ) => Note
   updateNote: (
     slug: string,
     patch: Partial<
-      Pick<Note, 'title' | 'description' | 'blocks' | 'attachedProjectSlugs'>
+      Pick<
+        Note,
+        'title' | 'description' | 'bodyHtml' | 'blocks' | 'attachedProjectSlugs'
+      >
     >,
   ) => void
   deleteNote: (slug: string) => void
@@ -32,7 +37,7 @@ export function newBlockId() {
     : `b-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 }
 
-export function createEmptyBlock(type: NoteBlockType = 'paragraph'): NoteBlock {
+export function createEmptyBlock(type: NoteBlockType = 'todo'): NoteBlock {
   const id = newBlockId()
   switch (type) {
     case 'todo':

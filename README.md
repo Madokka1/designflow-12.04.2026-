@@ -45,6 +45,12 @@ npm run dev
 3. `supabase/migrations/003_profile_ui_and_timer_log.sql`
 4. `supabase/migrations/004_read_only_mode.sql`
 5. `supabase/migrations/005_workspace_extras.sql` (клиенты, задачи, шаблоны, архив проектов, ревизии заметок)
+6. `supabase/migrations/006_telegram_notifications.sql` (Telegram: привязка чата, дедлайны)
+7. `supabase/migrations/007_telegram_notify_creates.sql` (уведомления о создании сущностей)
+8. `supabase/migrations/008_project_employee_hourly_rate.sql` (почасовая ставка в проекте)
+9. `supabase/migrations/009_task_comment_reminder.sql` (комментарий и план уведомления у задач — **нужно для заметок/напоминаний**)
+10. `supabase/migrations/010_task_telegram_reminders.sql` (дедупликация Telegram-напоминаний задач — нужно для `telegram-notify-bot`)
+11. `supabase/migrations/011_notes_body_html.sql` (WYSIWYG-холст заметок: `notes.body_html`)
 
 Краткая инструкция по деплою статики и nginx — в [`deploy/README.md`](deploy/README.md).
 

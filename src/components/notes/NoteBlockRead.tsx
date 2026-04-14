@@ -59,6 +59,17 @@ export function NoteBlockRead({ block }: { block: NoteBlock }) {
       )
     case 'paragraph':
       if (!block.text.trim()) return <div className="min-h-[0.5rem]" aria-hidden />
+      // Поддерживаем два формата:
+      // 1) старый: plain text (с \n)
+      // 2) новый: небольшой HTML (b/strong/i/em/u/s/del/a/br/span)
+      if (block.text.includes('<')) {
+        return (
+          <p
+            className="whitespace-pre-wrap text-base font-light leading-[1.45] tracking-[-0.09em] text-ink"
+            dangerouslySetInnerHTML={{ __html: block.text }}
+          />
+        )
+      }
       return (
         <p className="whitespace-pre-wrap text-base font-light leading-[1.45] tracking-[-0.09em] text-ink">
           {block.text}

@@ -38,8 +38,63 @@ function noteSlug(title: string): string {
 }
 
 function normalizeNote(n: Note): Note {
+  const blocks = Array.isArray(n.blocks) ? n.blocks : []
+  const bodyHtmlRaw = typeof n.bodyHtml === 'string' ? n.bodyHtml : ''
+
+  // Мягкая миграция: старые заметки с текстовыми блоками → единый bodyHtml.
+  // Текстовые блоки (paragraph/h1..h6) убираем из blocks, чтобы не дублировать.
+  let migratedHtml = bodyHtmlRaw.trim()
+  const nextBlocks: Note['blocks'] = []
+  const textParts: string[] = []
+  for (const b of blocks) {
+    if (!b || typeof b !== 'object') continue
+    const bb = b as { type?: unknown; text?: unknown }
+    const type = typeof bb.type === 'string' ? bb.type : ''
+    const text = typeof bb.text === 'string' ? bb.text : ''
+    if (
+      type === 'paragraph' ||
+      type === 'h1' ||
+      type === 'h2' ||
+      type === 'h3' ||
+      type === 'h4' ||
+      type === 'h5' ||
+      type === 'h6'
+    ) {
+      // Конвертируем в простой HTML (без стилей): заголовки и переносы.
+      const safe = text
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;')
+        .replaceAll('\n', '<br>')
+      const tag =
+        type === 'h1'
+          ? 'h1'
+          : type === 'h2'
+            ? 'h2'
+            : type === 'h3'
+              ? 'h3'
+              : type === 'h4'
+                ? 'h4'
+                : type === 'h5'
+                  ? 'h5'
+                  : type === 'h6'
+                    ? 'h6'
+                    : 'p'
+      if (safe.trim()) textParts.push(`<${tag}>${safe}</${tag}>`)
+      continue
+    }
+    nextBlocks.push(b as Note['blocks'][number])
+  }
+  if (!migratedHtml && textParts.length > 0) {
+    migratedHtml = textParts.join('\n')
+  }
+
   return {
     ...n,
+    bodyHtml: migratedHtml,
+    blocks: nextBlocks,
     attachedProjectSlugs: Array.isArray(n.attachedProjectSlugs)
       ? n.attachedProjectSlugs
       : [],
@@ -146,7 +201,7 @@ export function NotesProvider({ children }: { children: ReactNode }) {
   const createNote = useCallback(
     (
       partial?: Partial<
-        Pick<Note, 'title' | 'description' | 'attachedProjectSlugs'>
+        Pick<Note, 'title' | 'description' | 'bodyHtml' | 'attachedProjectSlugs'>
       >,
     ) => {
       const id = newNoteId()
@@ -157,8 +212,9 @@ export function NotesProvider({ children }: { children: ReactNode }) {
         slug,
         title,
         description: partial?.description ?? 'Описание',
+        bodyHtml: partial?.bodyHtml ?? '',
         createdAt: new Date().toISOString(),
-        blocks: [createEmptyBlock('paragraph')],
+        blocks: [],
         attachedProjectSlugs: partial?.attachedProjectSlugs?.length
           ? [...partial.attachedProjectSlugs]
           : [],
@@ -191,7 +247,10 @@ export function NotesProvider({ children }: { children: ReactNode }) {
     (
       slug: string,
       patch: Partial<
-        Pick<Note, 'title' | 'description' | 'blocks' | 'attachedProjectSlugs'>
+        Pick<
+          Note,
+          'title' | 'description' | 'bodyHtml' | 'blocks' | 'attachedProjectSlugs'
+        >
       >,
     ) => {
       setNotes((prev) => {

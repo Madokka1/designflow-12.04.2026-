@@ -34,6 +34,8 @@ export type Note = {
   slug: string
   title: string
   description: string
+  /** Основное тело заметки (rich text HTML, минимальный набор тегов). */
+  bodyHtml?: string
   createdAt: string
   blocks: NoteBlock[]
   /** Slug проектов, к которым прикреплена заметка */

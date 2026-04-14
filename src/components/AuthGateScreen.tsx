@@ -301,15 +301,7 @@ export function AuthGateScreen() {
                 Проект Supabase (только регистрация)
               </h2>
               <p className="mt-3 text-sm font-light leading-snug text-ink/65">
-                {SUPABASE_SQL_INSTRUCTION} Полный скрипт — в репозитории:{' '}
-                <code className="rounded bg-ink/[0.06] px-1 py-0.5 font-mono text-[11px]">
-                  supabase/migrations/001_portfolio_schema.sql
-                </code>{' '}
-                и{' '}
-                <code className="rounded bg-ink/[0.06] px-1 py-0.5 font-mono text-[11px]">
-                  002_profiles_supabase_connection.sql
-                </code>
-                .
+                {SUPABASE_SQL_INSTRUCTION}
               </p>
               <button
                 type="button"

@@ -8,6 +8,7 @@ function normalizeNoteRow(
     slug: string
     title: string
     description: string
+    body_html?: string | null
     created_at: string
     blocks: unknown
     attached_project_slugs: unknown
@@ -21,6 +22,7 @@ function normalizeNoteRow(
     slug: row.slug,
     title: row.title,
     description: row.description,
+    bodyHtml: typeof row.body_html === 'string' ? row.body_html : '',
     createdAt: new Date(row.created_at).toISOString(),
     blocks: Array.isArray(row.blocks) ? (row.blocks as Note['blocks']) : [],
     attachedProjectSlugs: slugs,
@@ -33,7 +35,7 @@ export async function fetchNotesFromSupabase(
 ): Promise<Note[]> {
   const { data, error } = await client
     .from('notes')
-    .select('id,slug,title,description,created_at,blocks,attached_project_slugs')
+    .select('id,slug,title,description,body_html,created_at,blocks,attached_project_slugs')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
 
@@ -53,6 +55,7 @@ export async function upsertNoteToSupabase(
     slug: note.slug,
     title: note.title,
     description: note.description,
+    body_html: note.bodyHtml ?? '',
     created_at: note.createdAt,
     blocks: note.blocks,
     attached_project_slugs: note.attachedProjectSlugs ?? [],
@@ -67,7 +70,10 @@ export async function upsertNoteToSupabase(
     .select('id')
     .maybeSingle()
 
-  if (error) return null
+  if (error) {
+    console.warn('[notes upsert]', error.code, error.message)
+    return null
+  }
   const id = data && typeof (data as { id: string }).id === 'string' ? (data as { id: string }).id : null
   return id ? { id } : null
 }
