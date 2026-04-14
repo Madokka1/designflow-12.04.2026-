@@ -1158,8 +1158,9 @@ export function SettingsPage() {
                         'Проверка DesignFlow: если вы видите это сообщение, уведомления работают.',
                       )
                       if (!r.ok) {
+                        const err = 'error' in r ? r.error : 'Неизвестная ошибка'
                         setTelegramUiHint(
-                          `Ошибка Edge Function: ${r.error}. Задеплойте portfolio-notify и секреты (см. telegram-notify-bot/README.md), откройте консоль (F12).`,
+                          `Ошибка Edge Function: ${err}. Задеплойте portfolio-notify и секреты (см. telegram-notify-bot/README.md), откройте консоль (F12).`,
                         )
                         return
                       }
