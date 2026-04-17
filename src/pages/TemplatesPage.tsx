@@ -13,7 +13,7 @@ export function TemplatesPage() {
 
   return (
     <main className="relative z-10 mx-auto w-full max-w-[1840px] px-4 pb-16 pt-8 sm:px-10 sm:pt-10">
-      <h1 className="text-[clamp(2rem,5vw,3.5rem)] font-light leading-[0.9] tracking-[-0.09em]">
+      <h1 className="text-[clamp(2rem,5vw,3.5rem)] font-light leading-[0.9] tracking-[-0.06em]">
         Шаблоны проектов
       </h1>
       <p className="mt-2 max-w-2xl text-sm font-light text-ink/60">

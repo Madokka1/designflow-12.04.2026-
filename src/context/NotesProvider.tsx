@@ -18,7 +18,6 @@ import {
 } from '../lib/notesSupabase'
 import { useRemoteSync } from './remoteSyncContext'
 import {
-  createEmptyBlock,
   newBlockId,
   NotesContext,
 } from './notesContext'

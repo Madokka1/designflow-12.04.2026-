@@ -23,7 +23,6 @@ type Props = {
   onToggleTimer: () => void
   onToggleChecklistItem: (itemId: string) => void
   onClose: () => void
-  onDelete: () => void
   onEdit: () => void
 }
 
@@ -35,7 +34,6 @@ export function StageDetailModal({
   onToggleTimer,
   onToggleChecklistItem,
   onClose,
-  onDelete,
   onEdit,
 }: Props) {
   const titleId = useId()
@@ -87,7 +85,7 @@ export function StageDetailModal({
         aria-labelledby={titleId}
         className={`ui-modal-panel-right relative flex h-full max-h-[100dvh] min-h-0 w-full max-w-[525px] flex-col border-l ${modalEdgeBorderClass} bg-surface shadow-none`}
       >
-        <div className="flex shrink-0 items-center border-b border-card-border py-3 pl-[max(1.5rem,env(safe-area-inset-left))] pr-[max(1.5rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:hidden">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-card-border py-3 pl-[max(1.5rem,env(safe-area-inset-left))] pr-[max(1.5rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:hidden">
           <button
             type="button"
             onClick={onClose}
@@ -95,6 +93,13 @@ export function StageDetailModal({
             aria-label="Вернуться к проекту"
           >
             ← К проекту
+          </button>
+          <button
+            type="button"
+            onClick={onToggleTimer}
+            className="rounded-full border border-black bg-black px-4 py-2 text-sm font-light tabular-nums tracking-[-0.04em] text-white transition-[background-color,opacity] duration-200 hover:bg-neutral-900 active:opacity-90"
+          >
+            {timerSessionActive ? 'Остановить таймер' : 'Запустить таймер'}
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-6 sm:px-10 sm:pt-16">
@@ -154,7 +159,7 @@ export function StageDetailModal({
             </div>
           </div>
 
-          <p className="mt-10 max-w-[445px] text-base font-light leading-[1.4] tracking-[-0.09em] text-ink">
+          <p className="mt-10 max-w-[445px] text-base font-light leading-[1.4] tracking-[-0.06em] text-ink">
             {description}
           </p>
 
@@ -197,23 +202,13 @@ export function StageDetailModal({
                       className={`mt-1.5 h-2 w-2 shrink-0 border border-ink ${item.done ? 'bg-ink' : ''}`}
                       aria-hidden
                     />
-                    <span className="text-base font-light leading-[1.4] tracking-[-0.09em]">
+                    <span className="text-base font-light leading-[1.4] tracking-[-0.06em]">
                       {item.label}
                     </span>
                   </button>
                 ))}
               </div>
             ) : null}
-          </div>
-
-          <div className="mt-10 flex max-w-[445px] flex-col gap-4">
-            <button
-              type="button"
-              onClick={onToggleTimer}
-              className="w-fit rounded-full bg-fill-contrast-bg px-4 py-2 text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-fill-contrast-fg transition-opacity hover:opacity-90"
-            >
-              {timerSessionActive ? 'Остановить таймер' : 'Запустить таймер'}
-            </button>
           </div>
 
           <div className="mt-8 flex max-w-[445px] flex-wrap gap-2 sm:hidden">
@@ -223,17 +218,6 @@ export function StageDetailModal({
               className="h-8 rounded-full bg-fill-contrast-bg px-5 text-sm font-light tracking-[-0.05em] text-fill-contrast-fg transition-opacity hover:opacity-90"
             >
               Редактировать этап
-            </button>
-            <button
-              type="button"
-              className="h-8 rounded-full bg-fill-contrast-bg px-5 text-sm font-light tracking-[-0.05em] text-fill-contrast-fg transition-opacity hover:opacity-90"
-              onClick={() => {
-                onDelete()
-                onClose()
-              }}
-              aria-label="Удалить этап"
-            >
-              Удалить
             </button>
           </div>
           <div className="pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:hidden" aria-hidden />
@@ -246,17 +230,6 @@ export function StageDetailModal({
             onClick={onEdit}
           >
             Редактировать этап
-          </button>
-          <button
-            type="button"
-            className="h-8 rounded-full bg-fill-contrast-bg px-5 text-sm font-light tracking-[-0.05em] text-fill-contrast-fg transition-opacity hover:opacity-90"
-            onClick={() => {
-              onDelete()
-              onClose()
-            }}
-            aria-label="Удалить этап"
-          >
-            Удалить
           </button>
         </div>
       </div>

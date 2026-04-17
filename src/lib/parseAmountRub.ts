@@ -16,7 +16,6 @@ export function formatRub(amount: number): string {
 export function formatRubDots(amount: number): string {
   const n = new Intl.NumberFormat('ru-RU', {
     maximumFractionDigits: 0,
-    signDisplay: amount === 0 ? 'never' : 'exceptZero',
   }).format(amount)
   return `${n.replace(/\s/g, '.')} руб.`
 }

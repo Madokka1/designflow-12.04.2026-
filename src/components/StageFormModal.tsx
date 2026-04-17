@@ -26,6 +26,7 @@ type Props = {
   initialForm: CreateStageForm
   onClose: () => void
   onSubmit: (data: CreateStageForm) => void
+  onDelete?: () => void
   /** z-50 по умолчанию; для редактирования поверх деталей — выше */
   zClassName?: string
 }
@@ -69,6 +70,7 @@ export function StageFormModal({
   initialForm,
   onClose,
   onSubmit,
+  onDelete,
   zClassName = 'z-50',
 }: Props) {
   const titleId = useId()
@@ -98,6 +100,20 @@ export function StageFormModal({
 
   const reset = () => setForm({ ...initialForm })
 
+  const handleReset = () => {
+    const ok = window.confirm('Сбросить изменения этапа?')
+    if (!ok) return
+    reset()
+  }
+
+  const handleDelete = () => {
+    if (!onDelete) return
+    const ok = window.confirm('Удалить этап?')
+    if (!ok) return
+    onDelete()
+    onClose()
+  }
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
     onSubmit(form)
@@ -121,7 +137,7 @@ export function StageFormModal({
         className={`ui-modal-panel-right relative flex h-full max-h-[100dvh] min-h-0 w-full max-w-[960px] flex-col border-l ${modalEdgeBorderClass} bg-surface shadow-none`}
       >
         <form className="flex h-full min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
-          <div className="flex shrink-0 items-center border-b border-card-border py-3 pl-[max(1.5rem,env(safe-area-inset-left))] pr-[max(1.5rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:hidden">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-card-border py-3 pl-[max(1.5rem,env(safe-area-inset-left))] pr-[max(1.5rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:hidden">
             <button
               type="button"
               onClick={onClose}
@@ -130,6 +146,24 @@ export function StageFormModal({
             >
               ← Назад
             </button>
+            <div className="flex items-center gap-4">
+              {onDelete ? (
+                <button
+                  type="button"
+                  className="text-sm font-light tracking-[-0.02em] text-red-700 underline-offset-4 transition-opacity hover:underline hover:opacity-90 dark:text-red-400"
+                  onClick={handleDelete}
+                >
+                  Удалить
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="text-sm font-light tracking-[-0.02em] text-ink/70 underline-offset-4 transition-opacity hover:underline hover:opacity-90"
+                onClick={handleReset}
+              >
+                Сбросить
+              </button>
+            </div>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-6 sm:px-10 sm:pt-20">
             <h2
@@ -313,29 +347,20 @@ export function StageFormModal({
             </div>
           </div>
 
-          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-card-border bg-surface px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-10 sm:py-6">
+          <div className="flex shrink-0 items-center gap-3 border-t border-card-border bg-surface px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-10 sm:py-6">
+            <button
+              type="button"
+              className="h-10 flex-1 rounded-full border border-card-border bg-surface px-6 text-sm font-light tracking-[-0.05em] text-ink transition-colors hover:bg-ink/[0.04] sm:h-8 sm:flex-none sm:px-5"
+              onClick={onClose}
+            >
+              Отмена
+            </button>
             <button
               type="submit"
-              className="h-8 rounded-full bg-fill-contrast-bg px-5 text-sm font-light tracking-[-0.05em] text-fill-contrast-fg transition-opacity hover:opacity-90"
+              className="h-10 flex-1 rounded-full bg-fill-contrast-bg px-6 text-sm font-light tracking-[-0.05em] text-fill-contrast-fg transition-opacity hover:opacity-90 sm:h-8 sm:flex-none sm:px-5"
             >
               {submitLabel}
             </button>
-            <div className="flex flex-wrap items-center justify-end gap-3 sm:gap-4">
-              <button
-                type="button"
-                className="h-8 rounded-full border border-card-border bg-surface px-5 text-sm font-light tracking-[-0.05em] text-ink transition-colors hover:bg-ink/[0.04]"
-                onClick={onClose}
-              >
-                Отмена
-              </button>
-              <button
-                type="button"
-                className="h-8 rounded-full bg-fill-contrast-bg px-5 text-sm font-light tracking-[-0.05em] text-fill-contrast-fg transition-opacity hover:opacity-90"
-                onClick={reset}
-              >
-                Сбросить
-              </button>
-            </div>
           </div>
         </form>
       </div>

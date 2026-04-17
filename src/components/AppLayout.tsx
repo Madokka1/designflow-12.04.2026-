@@ -329,14 +329,14 @@ export function AppLayout() {
 
       {syncLabel && portfolio.kind !== 'idle' ? (
         <div
-          className={`relative z-10 mx-auto mt-3 w-full max-w-[1840px] px-4 sm:px-10 ${
+          className={`fixed bottom-5 right-5 z-[70] w-[min(calc(100vw-2.5rem),24rem)] ${
             portfolio.kind === 'error' ? 'text-red-800 dark:text-red-200' : ''
           }`}
           role="status"
           aria-live="polite"
         >
           <p
-            className={`border px-4 py-2 text-center text-xs font-light ${
+            className={`rounded-[3px] border px-4 py-2 text-center text-xs font-light shadow-sm ${
               portfolio.kind === 'error'
                 ? 'border-red-700/30 bg-red-500/10'
                 : 'border-card-border bg-surface text-ink/70'

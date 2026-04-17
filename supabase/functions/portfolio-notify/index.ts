@@ -80,7 +80,7 @@ function allowNotifyRate(userId: string): boolean {
     Number(Deno.env.get('PORTFOLIO_NOTIFY_WINDOW_MS') ?? '300000') || 300_000,
   )
   const now = Date.now()
-  let b = rateByUser.get(userId)
+  const b = rateByUser.get(userId)
   if (!b || now >= b.resetAt) {
     rateByUser.set(userId, { count: 1, resetAt: now + windowMs })
     return true

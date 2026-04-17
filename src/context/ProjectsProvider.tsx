@@ -703,7 +703,11 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         typeof crypto !== 'undefined' && crypto.randomUUID
           ? crypto.randomUUID()
           : `tx-${Date.now()}`
-      const row: FinanceTransaction = { ...data, id }
+      const row: FinanceTransaction = {
+        ...data,
+        id,
+        createdAt: data.createdAt ?? new Date().toISOString(),
+      }
       setFinanceTransactions((prev) => [row, ...prev])
       if (client && userId && !readOnly) {
         setPortfolioSync({ kind: 'saving' })

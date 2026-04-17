@@ -12,7 +12,41 @@ const COL_AWAIT = '#E2D75E'
 const COL_STAGED = '#004DFF'
 const COL_PERSONAL = '#0A0A0A'
 const BORDER_MAIN = 'border-[rgba(10,10,10,0.32)]'
-const BORDER_ROW = 'border-[rgba(10,10,10,0.4)]'
+
+function formatDdMmYyyy(iso?: string): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const yyyy = d.getFullYear()
+  return `${dd}.${mm}.${yyyy}`
+}
+
+function pillClass(tone: 'neutral' | 'success' | 'warning' | 'info' | 'danger') {
+  const base =
+    'inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-light uppercase leading-none tracking-[-0.02em]'
+  switch (tone) {
+    case 'success':
+      return `${base} border-emerald-700/20 bg-emerald-500/10 text-emerald-900 dark:border-emerald-300/20 dark:bg-emerald-400/10 dark:text-emerald-200`
+    case 'warning':
+      return `${base} border-amber-700/20 bg-amber-500/10 text-amber-950 dark:border-amber-300/20 dark:bg-amber-400/10 dark:text-amber-200`
+    case 'info':
+      return `${base} border-blue-700/20 bg-blue-500/10 text-blue-950 dark:border-blue-300/20 dark:bg-blue-400/10 dark:text-blue-200`
+    case 'danger':
+      return `${base} border-red-700/20 bg-red-500/10 text-red-900 dark:border-red-300/20 dark:bg-red-400/10 dark:text-red-200`
+    default:
+      return `${base} border-ink/15 bg-ink/[0.03] text-ink/75 dark:border-white/15 dark:bg-white/[0.04] dark:text-ink/70`
+  }
+}
+
+function projectStatusPill(p: Project): { label: string; tone: Parameters<typeof pillClass>[0] } {
+  if (getProjectSection(p) === 'Личные') return { label: 'личные', tone: 'neutral' }
+  const pay = paymentTag(p)
+  if (pay === 'оплачено') return { label: 'оплачено', tone: 'success' }
+  if (pay === 'поэтапная оплата') return { label: 'поэтапно', tone: 'info' }
+  return { label: 'ожидает оплаты', tone: 'warning' }
+}
 
 function paymentTag(p: Project): string | null {
   for (const t of p.tags ?? []) {
@@ -77,6 +111,7 @@ export function FinancePage() {
   const { projects, financeTransactions, addFinanceTransaction } = useProjects()
   const [logTab, setLogTab] = useState<LogTab>('all')
   const [transactionModalOpen, setTransactionModalOpen] = useState(false)
+  const [hoveredLogRowId, setHoveredLogRowId] = useState<string | null>(null)
 
   useEffect(() => {
     const hash = location.hash.replace(/^#/, '')
@@ -264,10 +299,8 @@ export function FinancePage() {
             </div>
           </section>
 
-          <section
-            className={`flex flex-col gap-10 border ${BORDER_MAIN} p-5 sm:p-5`}
-          >
-            <p className="text-base font-light leading-[0.9] tracking-[-0.09em]">
+          <section className={`flex flex-col gap-10 border ${BORDER_MAIN} p-5 sm:p-5`}>
+            <p className="text-sm font-light leading-[0.9] tracking-[-0.06em]">
               Логи
             </p>
 
@@ -281,7 +314,7 @@ export function FinancePage() {
                     className="flex flex-col items-center gap-px"
                   >
                     <span
-                      className={`text-base leading-[1.2] ${logTab === t.id ? 'font-normal' : 'font-light'} tracking-normal`}
+                      className={`text-sm leading-[1.2] ${logTab === t.id ? 'font-normal' : 'font-light'} tracking-normal`}
                     >
                       {t.label}
                     </span>
@@ -302,40 +335,87 @@ export function FinancePage() {
             </div>
 
             <div className="flex flex-col">
-              {logRows.map((row) =>
-                row.kind === 'project' ? (
-                  <div
-                    key={`p-${row.project.id}`}
-                    className={`flex flex-row items-center justify-between gap-4 border-t ${BORDER_ROW} px-5 py-5 first:border-t-0 first:pt-0 sm:px-5`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <Link
-                        to={`/projects/${row.project.slug}`}
-                        className="text-[clamp(1.25rem,3vw,2rem)] font-light leading-[0.9] tracking-[-0.09em] underline-offset-4 hover:underline"
-                      >
-                        {row.project.title}
-                      </Link>
+              <div
+                className={`hidden grid-cols-[minmax(0,1fr)_10rem_9rem_11rem_10rem] gap-4 border-b ${BORDER_MAIN} px-5 pb-3 text-[10px] font-light uppercase tracking-[-0.02em] text-ink/60 sm:grid`}
+                aria-hidden
+              >
+                <span>Название</span>
+                <span>Раздел</span>
+                <span>Дата</span>
+                <span>Статус</span>
+                <span className="text-right">Сумма</span>
+              </div>
+
+              <div className="flex flex-col">
+                {logRows.map((row) => {
+                  const isTx = row.kind === 'transaction'
+                  const rowId = isTx ? `tx-${row.tx.id}` : `p-${row.project.id}`
+                  const title = isTx ? row.tx.title : row.project.title
+                  const section = isTx ? 'Транзакция' : getProjectSection(row.project)
+                  const date = isTx
+                    ? formatDdMmYyyy(row.tx.createdAt)
+                    : (row.project.deadline?.trim() || '—')
+                  const status = isTx
+                    ? row.tx.kind === 'income'
+                      ? { label: 'доход', tone: 'success' as const }
+                      : { label: 'расход', tone: 'danger' as const }
+                    : projectStatusPill(row.project)
+                  const amountRub = isTx
+                    ? row.tx.amountRub
+                    : parseAmountRub(row.project.amount)
+                  const amountPrefix = isTx
+                    ? row.tx.kind === 'income'
+                      ? '+'
+                      : '−'
+                    : ''
+
+                  return (
+                    <div
+                      key={rowId}
+                      id={isTx ? `finance-tx-${row.tx.id}` : undefined}
+                      onMouseEnter={() => setHoveredLogRowId(rowId)}
+                      onMouseLeave={() => setHoveredLogRowId(null)}
+                      className={`scroll-mt-24 border-t ${BORDER_MAIN} px-5 py-5 first:border-t-0 transition-opacity duration-150 sm:px-5 ${
+                        hoveredLogRowId && hoveredLogRowId !== rowId
+                          ? 'opacity-20'
+                          : 'opacity-100'
+                      }`}
+                    >
+                      <div className="flex flex-col gap-2 sm:grid sm:grid-cols-[minmax(0,1fr)_10rem_9rem_11rem_10rem] sm:items-center sm:gap-4">
+                        <div className="min-w-0">
+                          {isTx ? (
+                            <p className="truncate text-[clamp(1.25rem,3vw,2rem)] font-light leading-[0.9] tracking-[-0.09em]">
+                              {title}
+                            </p>
+                          ) : (
+                            <Link
+                              to={`/projects/${row.project.slug}`}
+                              className="block truncate text-[1.4rem] font-light leading-[0.9] tracking-[-0.09em] underline-offset-4 hover:underline"
+                            >
+                              {title}
+                            </Link>
+                          )}
+                        </div>
+
+                        <span className="text-xs font-light tracking-[-0.02em] text-ink/60 sm:text-[12px]">
+                          {section}
+                        </span>
+                        <span className="text-xs font-light tracking-[-0.02em] text-ink/60 sm:text-[12px]">
+                          {date}
+                        </span>
+                        <div className="hidden sm:block">
+                          <span className={pillClass(status.tone)}>{status.label}</span>
+                        </div>
+
+                        <p className="text-right text-base font-light tabular-nums tracking-[-0.04em] sm:text-[15px]">
+                          {amountPrefix}
+                          {formatRubDots(amountRub)}
+                        </p>
+                      </div>
                     </div>
-                    <p className="shrink-0 text-base font-light leading-[0.9] tracking-[-0.09em]">
-                      +{formatRubDots(parseAmountRub(row.project.amount))}
-                    </p>
-                  </div>
-                ) : (
-                  <div
-                    key={`tx-${row.tx.id}`}
-                    id={`finance-tx-${row.tx.id}`}
-                    className={`scroll-mt-24 flex flex-row items-center justify-between gap-4 border-t ${BORDER_ROW} px-5 py-5 first:border-t-0 first:pt-0 sm:px-5`}
-                  >
-                    <p className="min-w-0 flex-1 text-[clamp(1.25rem,3vw,2rem)] font-light leading-[0.9] tracking-[-0.09em]">
-                      {row.tx.title}
-                    </p>
-                    <p className="shrink-0 text-base font-light leading-[0.9] tracking-[-0.09em]">
-                      {row.tx.kind === 'income' ? '+' : '−'}
-                      {formatRubDots(row.tx.amountRub)}
-                    </p>
-                  </div>
-                ),
-              )}
+                  )
+                })}
+              </div>
               {logRows.length === 0 && (
                 <p className="text-base font-light tracking-[-0.09em] text-ink/50">
                   Нет проектов в этом разделе.

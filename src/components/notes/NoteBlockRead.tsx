@@ -9,7 +9,7 @@ function TodoRead({ item }: { item: NoteTodoItem }) {
         aria-hidden
       />
       <span
-        className={`text-base font-light leading-[1.4] tracking-[-0.09em] text-ink ${
+        className={`text-base font-light leading-[1.4] tracking-[-0.06em] text-ink ${
           item.done ? 'text-ink/45 line-through' : ''
         }`}
       >

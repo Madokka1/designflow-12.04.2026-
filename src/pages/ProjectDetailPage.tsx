@@ -268,10 +268,10 @@ export function ProjectDetailPage() {
         <aside className="order-1 w-full shrink-0 rounded-[3px] border border-[rgba(10,10,10,0.32)] p-5 xl:order-2 xl:max-w-[445px]">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1 flex flex-col gap-3">
-              <h2 className="text-[24px] font-light leading-[0.9] tracking-[-0.09em]">
+              <h2 className="text-[24px] font-light leading-[0.9] tracking-[-0.06em] sm:tracking-[-0.09em]">
                 {project.title}
               </h2>
-              <p className="text-[14px] font-light leading-[0.9] tracking-[-0.09em]">
+              <p className="text-[14px] font-light leading-[0.9] tracking-[-0.06em] sm:tracking-[-0.09em]">
                 {project.client}
               </p>
             </div>
@@ -293,7 +293,7 @@ export function ProjectDetailPage() {
                   </span>
                 ))}
               </div>
-              <span className="shrink-0 text-base font-light leading-[0.9] tracking-[-0.09em]">
+              <span className="shrink-0 text-base font-light leading-[0.9] tracking-[-0.06em] sm:tracking-[-0.09em]">
                 {project.amount}
               </span>
             </div>
@@ -368,7 +368,6 @@ export function ProjectDetailPage() {
           setSelectedStage(null)
           setStageEditOpen(false)
         }}
-        onDelete={() => removeProjectStage(slug, detailStage.id)}
         onEdit={() => {
           setStageEditNonce((n) => n + 1)
           setStageEditOpen(true)
@@ -384,6 +383,7 @@ export function ProjectDetailPage() {
         initialForm={stageToForm(detailStage)}
         zClassName="z-[70]"
         onClose={() => setStageEditOpen(false)}
+        onDelete={() => removeProjectStage(slug, detailStage.id)}
         onSubmit={(data) => {
           updateProjectStage(slug, detailStage.id, data)
           setStageEditOpen(false)

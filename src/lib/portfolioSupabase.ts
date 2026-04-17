@@ -197,11 +197,13 @@ export async function fetchPortfolioBundle(
       title: string
       amount_rub: string | number
       kind: string
+      created_at?: string
     }) => ({
       id: r.id,
       title: r.title,
       amountRub: Number(r.amount_rub),
       kind: r.kind === 'expense' ? 'expense' : 'income',
+      createdAt: r.created_at ?? undefined,
     }),
   )
 

@@ -28,9 +28,6 @@ function TaskDetailPanel({
   updateTask: (id: string, patch: Partial<Omit<WorkspaceTask, 'id'>>) => void
 }) {
   const [commentLocal, setCommentLocal] = useState(task.comment)
-  useEffect(() => {
-    setCommentLocal(task.comment)
-  }, [task.id, task.comment])
 
   const summary = taskReminderSummary(task)
 
@@ -492,7 +489,11 @@ export function TasksPage() {
                 </button>
               </div>
               {openDetailsId === t.id ? (
-                <TaskDetailPanel task={t} updateTask={updateTask} />
+                <TaskDetailPanel
+                  key={`${t.id}:${t.comment}`}
+                  task={t}
+                  updateTask={updateTask}
+                />
               ) : null}
             </li>
           ))
