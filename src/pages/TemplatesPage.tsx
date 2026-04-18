@@ -32,7 +32,7 @@ export function TemplatesPage() {
           sorted.map((tpl) => (
             <li
               key={tpl.id}
-              className="flex flex-wrap items-center justify-between gap-3 border border-card-border px-5 py-4"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-[3px] border border-card-border px-5 py-4"
             >
               <div>
                 <p className="text-base font-light">{tpl.name}</p>

@@ -12,7 +12,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useSettings } from '../hooks/useSettings'
 import {
   fetchNoteRevisions,
-  insertNoteRevision,
+  replaceNoteRevision,
 } from '../lib/noteRevisionsSupabase'
 import { NoteEditMetaModal } from '../components/NoteEditMetaModal'
 import {
@@ -478,11 +478,11 @@ export function NoteEditorPage() {
             type="button"
             className="h-8 shrink-0 rounded-full border border-[rgba(10,10,10,0.32)] px-4 text-sm font-light tracking-[-0.05em] text-ink hover:bg-ink/[0.04] disabled:opacity-40"
             disabled={readOnly || !client || !userId}
-            title="Сохранить снимок в историю (без ограничения по времени)"
+            title="Записать в Supabase одну резервную копию (предыдущая для этой заметки будет заменена)"
             onClick={() => {
               if (!noteSlug || !client || !userId || !draft) return
               void (async () => {
-                const err = await insertNoteRevision(client, userId, noteSlug, draft)
+                const err = await replaceNoteRevision(client, userId, noteSlug, draft)
                 if (err) window.alert(err.message)
                 else {
                   const list = await fetchNoteRevisions(client, userId, noteSlug)
@@ -491,7 +491,7 @@ export function NoteEditorPage() {
               })()
             }}
           >
-            Сохранить версию
+            Сохранить копию
           </button>
         </div>
       </div>
@@ -579,7 +579,7 @@ export function NoteEditorPage() {
                         <label className="flex cursor-pointer items-start gap-2.5 text-sm font-light tracking-[-0.02em] text-ink">
                           <input
                             type="checkbox"
-                            className="mt-1 shrink-0 rounded border-[rgba(10,10,10,0.35)]"
+                            className="mt-1 shrink-0 rounded-[3px] border border-[rgba(10,10,10,0.35)]"
                             checked={(draft.attachedProjectSlugs ?? []).includes(
                               p.slug,
                             )}
@@ -596,19 +596,20 @@ export function NoteEditorPage() {
 
           <div className="mt-8 border-t border-[rgba(10,10,10,0.15)] pt-6 dark:border-white/10">
             <p className="text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink/70">
-              Версии (Supabase)
+              Резервная копия (Supabase)
             </p>
             {readOnly ? (
               <p className="mt-2 text-xs font-light text-ink/45">
-                В режиме только чтения новые ревизии не пишутся.
+                В режиме только чтения копию в облако записать нельзя.
               </p>
             ) : null}
             {revLoading ? (
               <p className="mt-2 text-xs font-light text-ink/45">Загрузка…</p>
             ) : revisions.length === 0 ? (
               <p className="mt-2 text-xs font-light text-ink/45">
-                Пока нет сохранённых версий (снимок предыдущего состояния не чаще чем
-                раз в ~1,5 мин. при правках).
+                Копия не создана. Нажмите «Сохранить копию» выше — в облаке хранится
+                не больше одного снимка на заметку; при повторном сохранении он
+                перезаписывается.
               </p>
             ) : (
               <ul className="mt-3 flex max-h-[220px] flex-col gap-2 overflow-y-auto pr-1">
@@ -691,14 +692,14 @@ export function NoteEditorPage() {
           <div className="group mt-10 flex min-h-0 flex-1 flex-col gap-2 border-t border-[rgba(10,10,10,0.32)] pt-5">
             {rtToolbar.open && !previewMode ? (
               <div
-                className="fixed z-[95] -translate-x-1/2 rounded-lg border border-card-border bg-surface/95 p-1 shadow-[0_8px_32px_rgba(10,10,10,0.12)] backdrop-blur-[20px]"
+                className="fixed z-[95] -translate-x-1/2 rounded-[3px] border border-card-border bg-surface/95 p-1 shadow-[0_8px_32px_rgba(10,10,10,0.12)] backdrop-blur-[20px]"
                 style={{ top: rtToolbar.top, left: rtToolbar.left }}
                 role="toolbar"
                 aria-label="Форматирование"
               >
                 <div className="flex items-center gap-1">
                   <select
-                    className="h-8 rounded-md border border-card-border bg-surface px-2 text-xs font-light text-ink"
+                    className="h-8 rounded-[3px] border border-card-border bg-surface px-2 text-xs font-light text-ink"
                     defaultValue="P"
                     onChange={(e) => exec('formatBlock', e.target.value)}
                     onMouseDown={(e) => e.stopPropagation()}
@@ -717,7 +718,7 @@ export function NoteEditorPage() {
 
                   <button
                     type="button"
-                    className="h-8 rounded-md px-2 text-xs font-light text-ink hover:bg-ink/[0.05]"
+                    className="h-8 rounded-[3px] px-2 text-xs font-light text-ink hover:bg-ink/[0.05]"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => exec('bold')}
                     aria-label="Жирный"
@@ -726,7 +727,7 @@ export function NoteEditorPage() {
                   </button>
                   <button
                     type="button"
-                    className="h-8 rounded-md px-2 text-xs font-light text-ink hover:bg-ink/[0.05]"
+                    className="h-8 rounded-[3px] px-2 text-xs font-light text-ink hover:bg-ink/[0.05]"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => exec('italic')}
                     aria-label="Курсив"
@@ -735,7 +736,7 @@ export function NoteEditorPage() {
                   </button>
                   <button
                     type="button"
-                    className="h-8 rounded-md px-2 text-xs font-light text-ink hover:bg-ink/[0.05]"
+                    className="h-8 rounded-[3px] px-2 text-xs font-light text-ink hover:bg-ink/[0.05]"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => exec('underline')}
                     aria-label="Подчёркнутый"
@@ -744,7 +745,7 @@ export function NoteEditorPage() {
                   </button>
                   <button
                     type="button"
-                    className="h-8 rounded-md px-2 text-xs font-light text-ink hover:bg-ink/[0.05]"
+                    className="h-8 rounded-[3px] px-2 text-xs font-light text-ink hover:bg-ink/[0.05]"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => exec('strikeThrough')}
                     aria-label="Зачёркнутый"
@@ -756,7 +757,7 @@ export function NoteEditorPage() {
 
                   <button
                     type="button"
-                    className="h-8 rounded-md px-2 text-xs font-light text-ink hover:bg-ink/[0.05]"
+                    className="h-8 rounded-[3px] px-2 text-xs font-light text-ink hover:bg-ink/[0.05]"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
                       const url = window.prompt('Ссылка (https://...)', 'https://')?.trim()
@@ -770,7 +771,7 @@ export function NoteEditorPage() {
 
                   <button
                     type="button"
-                    className="h-8 rounded-md px-2 text-xs font-light text-ink hover:bg-ink/[0.05]"
+                    className="h-8 rounded-[3px] px-2 text-xs font-light text-ink hover:bg-ink/[0.05]"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => exec('insertUnorderedList')}
                     aria-label="Маркированный список"
@@ -779,7 +780,7 @@ export function NoteEditorPage() {
                   </button>
                   <button
                     type="button"
-                    className="h-8 rounded-md px-2 text-xs font-light text-ink hover:bg-ink/[0.05]"
+                    className="h-8 rounded-[3px] px-2 text-xs font-light text-ink hover:bg-ink/[0.05]"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => exec('insertOrderedList')}
                     aria-label="Нумерованный список"
@@ -802,7 +803,7 @@ export function NoteEditorPage() {
                 <div className="mt-1 flex shrink-0 flex-col gap-0.5 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
                   <button
                     type="button"
-                    className="flex h-7 w-7 items-center justify-center rounded text-sm text-ink/40 hover:bg-ink/5 hover:text-ink"
+                    className="flex h-7 w-7 items-center justify-center rounded-[3px] text-sm text-ink/40 hover:bg-ink/5 hover:text-ink"
                     aria-label="Вставить блок"
                     onClick={(e) => {
                       e.stopPropagation()
@@ -925,7 +926,7 @@ function BlockRow({
     <div className="mt-1 flex shrink-0 flex-col gap-0.5 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
       <button
         type="button"
-        className="flex h-7 w-7 items-center justify-center rounded text-sm text-ink/40 hover:bg-ink/5 hover:text-ink"
+        className="flex h-7 w-7 items-center justify-center rounded-[3px] text-sm text-ink/40 hover:bg-ink/5 hover:text-ink"
         aria-label="Добавить блок"
         onClick={(e) => {
           e.stopPropagation()
@@ -936,7 +937,7 @@ function BlockRow({
       </button>
       <button
         type="button"
-        className="flex h-7 w-7 items-center justify-center rounded text-xs text-ink/35 hover:bg-ink/5 hover:text-ink/80"
+        className="flex h-7 w-7 items-center justify-center rounded-[3px] text-xs text-ink/35 hover:bg-ink/5 hover:text-ink/80"
         aria-label="Удалить блок"
         onClick={(e) => {
           e.stopPropagation()
@@ -999,7 +1000,7 @@ function BlockRow({
       body = (
         <div className="flex flex-col gap-2">
           <select
-            className="w-auto max-w-[120px] border border-[rgba(10,10,10,0.2)] bg-ink/[0.04] px-2 py-1 text-xs font-light"
+            className="w-auto max-w-[120px] rounded-[3px] border border-[rgba(10,10,10,0.2)] bg-ink/[0.04] px-2 py-1 text-xs font-light"
             value={block.language ?? 'html'}
             onChange={(e) =>
               onChange({
@@ -1014,7 +1015,7 @@ function BlockRow({
           </select>
           <textarea
             ref={codeTextareaRef}
-            className={`${baseInput} min-h-[120px] resize-none overflow-hidden rounded bg-[rgba(10,10,10,0.08)] p-4 font-mono text-sm leading-relaxed`}
+            className={`${baseInput} min-h-[120px] resize-none overflow-hidden rounded-[3px] bg-[rgba(10,10,10,0.08)] p-4 font-mono text-sm leading-relaxed`}
             value={block.text}
             placeholder={
               block.language === 'css'
@@ -1049,7 +1050,7 @@ function BlockRow({
     case 'image': {
       const src = (block.href ?? '').trim()
       body = (
-        <div className="flex flex-col gap-4 rounded border border-[rgba(10,10,10,0.2)] bg-ink/[0.02] p-4">
+        <div className="flex flex-col gap-4 rounded-[3px] border border-[rgba(10,10,10,0.2)] bg-ink/[0.02] p-4">
           <div className="flex flex-wrap items-center gap-3">
             <label
               htmlFor={imageFileInputId}
@@ -1085,7 +1086,7 @@ function BlockRow({
               <img
                 src={src}
                 alt={block.text || ''}
-                className="max-h-[min(70vh,520px)] w-full rounded border border-[rgba(10,10,10,0.12)] object-contain"
+                className="max-h-[min(70vh,520px)] w-full rounded-[3px] border border-[rgba(10,10,10,0.12)] object-contain"
               />
               <figcaption className="mt-2">
                 <input
@@ -1111,7 +1112,7 @@ function BlockRow({
     case 'video': {
       const vurl = (block.href ?? '').trim()
       body = (
-        <div className="flex flex-col gap-4 rounded border border-[rgba(10,10,10,0.2)] bg-ink/[0.02] p-4">
+        <div className="flex flex-col gap-4 rounded-[3px] border border-[rgba(10,10,10,0.2)] bg-ink/[0.02] p-4">
           <input
             className={`${baseInput} border-b border-[rgba(10,10,10,0.15)] py-1 text-base`}
             value={block.href ?? ''}

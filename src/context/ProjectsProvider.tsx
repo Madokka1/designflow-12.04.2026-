@@ -44,6 +44,7 @@ import {
   deleteClientRemote,
   deleteProjectFromSupabase,
   deleteTasksForProjectSlugRemote,
+  deleteCalendarEventRemote,
   deleteTaskRemote,
   deleteTemplateRemote,
   fetchPortfolioBundle,
@@ -719,24 +720,6 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     [client, userId, readOnly, reportSaveError, setPortfolioSync],
   )
 
-  const addCalendarCustomEvent = useCallback(
-    (data: Omit<CalendarCustomEvent, 'id'>) => {
-      const id =
-        typeof crypto !== 'undefined' && crypto.randomUUID
-          ? crypto.randomUUID()
-          : `cal-${Date.now()}`
-      const row: CalendarCustomEvent = { ...data, id }
-      setCalendarCustomEvents((prev) => [...prev, row])
-      if (client && userId && !readOnly) {
-        setPortfolioSync({ kind: 'saving' })
-        void upsertCalendarEventRemote(client, userId, row).then((e) =>
-          reportSaveError(e),
-        )
-      }
-    },
-    [client, userId, readOnly, reportSaveError, setPortfolioSync],
-  )
-
   const addProject = useCallback(
     (
       data: CreateProjectForm,
@@ -1058,6 +1041,38 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     [client, userId, readOnly, reportSaveError, setPortfolioSync],
   )
 
+  const addCalendarCustomEvent = useCallback(
+    (data: Omit<CalendarCustomEvent, 'id' | 'taskId'>) => {
+      const calId =
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `cal-${Date.now()}`
+      const taskRow = addTask({
+        title: data.title.trim() || 'Событие',
+        done: false,
+        dueDate: data.dateRaw.trim(),
+        comment: data.comment?.trim() ?? '',
+        projectSlug: null,
+        labels: ['календарь'],
+        reminderPreset: 'none',
+        reminderAtCustom: '',
+      })
+      const row: CalendarCustomEvent = {
+        ...data,
+        id: calId,
+        taskId: taskRow.id,
+      }
+      setCalendarCustomEvents((prev) => [...prev, row])
+      if (client && userId && !readOnly) {
+        setPortfolioSync({ kind: 'saving' })
+        void upsertCalendarEventRemote(client, userId, row).then((e) =>
+          reportSaveError(e),
+        )
+      }
+    },
+    [addTask, client, userId, readOnly, reportSaveError, setPortfolioSync],
+  )
+
   const updateTask = useCallback(
     (id: string, patch: Partial<Omit<WorkspaceTask, 'id'>>) => {
       setTasks((prev) => {
@@ -1095,12 +1110,23 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
 
   const deleteTask = useCallback(
     (id: string) => {
+      setCalendarCustomEvents((prev) => {
+        const linked = prev.filter((c) => c.taskId === id)
+        if (linked.length && client && userId && !readOnly) {
+          for (const c of linked) {
+            void deleteCalendarEventRemote(client, c.id).then((e) =>
+              reportSaveError(e),
+            )
+          }
+        }
+        return prev.filter((c) => c.taskId !== id)
+      })
       setTasks((prev) => prev.filter((t) => t.id !== id))
       if (client && userId && !readOnly) {
         void deleteTaskRemote(client, id)
       }
     },
-    [client, userId, readOnly],
+    [client, userId, readOnly, reportSaveError],
   )
 
   const deleteTemplate = useCallback(
@@ -1182,6 +1208,25 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     [schedulePersistProject],
   )
 
+  const reorderProjectStages = useCallback(
+    (projectSlug: string, nextStages: readonly ProjectStage[]) => {
+      setProjects((prev) =>
+        prev.map((p) => {
+          if (p.slug !== projectSlug) return p
+          const prevStages = [...(p.stages ?? DEFAULT_PROJECT_STAGES)]
+          if (nextStages.length !== prevStages.length) return p
+          const prevIds = new Set(prevStages.map((s) => s.id))
+          for (const s of nextStages) {
+            if (!prevIds.has(s.id)) return p
+          }
+          return refreshProjectDerived({ ...p, stages: [...nextStages] })
+        }),
+      )
+      schedulePersistProject(projectSlug)
+    },
+    [schedulePersistProject],
+  )
+
   const updateProjectStage = useCallback(
     (projectSlug: string, stageId: string, data: CreateStageForm) => {
       setProjects((prev) =>
@@ -1236,6 +1281,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       updateProjectStage,
       removeProjectStage,
       moveProjectStage,
+      reorderProjectStages,
       getProjectBySlug,
       setProjectArchived,
       saveProjectAsTemplate,
@@ -1284,6 +1330,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       updateProjectStage,
       removeProjectStage,
       moveProjectStage,
+      reorderProjectStages,
       getProjectBySlug,
       setProjectArchived,
       saveProjectAsTemplate,

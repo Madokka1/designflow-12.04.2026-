@@ -129,12 +129,12 @@ function MiniCalendarPopover({
         width: PANEL_W_PX,
         zIndex: 200,
       }}
-      className="rounded-lg border border-card-border bg-surface p-2.5 shadow-[0_8px_32px_rgba(10,10,10,0.12)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.45)]"
+      className="rounded-[3px] border border-card-border bg-surface p-2.5 shadow-[0_8px_32px_rgba(10,10,10,0.12)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.45)]"
     >
       <div className="mb-2 flex items-center justify-between gap-1">
         <button
           type="button"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-ink/10 text-sm text-ink transition-colors hover:bg-ink/[0.05] dark:border-white/15"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[3px] border border-ink/10 text-sm text-ink transition-colors hover:bg-ink/[0.05] dark:border-white/15"
           aria-label="Предыдущий месяц"
           onClick={prevMonth}
         >
@@ -145,7 +145,7 @@ function MiniCalendarPopover({
         </span>
         <button
           type="button"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-ink/10 text-sm text-ink transition-colors hover:bg-ink/[0.05] dark:border-white/15"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[3px] border border-ink/10 text-sm text-ink transition-colors hover:bg-ink/[0.05] dark:border-white/15"
           aria-label="Следующий месяц"
           onClick={nextMonth}
         >
@@ -173,7 +173,7 @@ function MiniCalendarPopover({
                 onPick(d)
                 onClose()
               }}
-              className={`mx-auto flex h-8 w-8 items-center justify-center rounded-md text-xs font-light tabular-nums transition-colors ${
+              className={`mx-auto flex h-8 w-8 items-center justify-center rounded-[3px] text-xs font-light tabular-nums transition-colors ${
                 !inMonth
                   ? 'text-ink/35 hover:bg-ink/[0.04] dark:text-ink/40 dark:hover:bg-white/[0.06]'
                   : isSelected

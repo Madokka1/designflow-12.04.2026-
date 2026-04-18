@@ -52,7 +52,7 @@ function ChipRow<T extends string>({
             type="button"
             aria-pressed={selected}
             onClick={() => onChange(opt)}
-            className={`rounded-[5px] border border-ink px-1.5 py-1 text-[10px] font-light uppercase leading-none tracking-[-0.02em] transition-colors duration-150 ${
+            className={`rounded-[3px] border border-ink px-1.5 py-1 text-[10px] font-light uppercase leading-none tracking-[-0.02em] transition-colors duration-150 ${
               selected ? 'bg-ink/10' : 'bg-surface hover:bg-ink/5'
             }`}
           >
@@ -98,14 +98,6 @@ export function StageFormModal({
   const update = <K extends keyof CreateStageForm>(key: K, v: CreateStageForm[K]) =>
     setForm((f) => ({ ...f, [key]: v }))
 
-  const reset = () => setForm({ ...initialForm })
-
-  const handleReset = () => {
-    const ok = window.confirm('Сбросить изменения этапа?')
-    if (!ok) return
-    reset()
-  }
-
   const handleDelete = () => {
     if (!onDelete) return
     const ok = window.confirm('Удалить этап?')
@@ -137,7 +129,7 @@ export function StageFormModal({
         className={`ui-modal-panel-right relative flex h-full max-h-[100dvh] min-h-0 w-full max-w-[960px] flex-col border-l ${modalEdgeBorderClass} bg-surface shadow-none`}
       >
         <form className="flex h-full min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
-          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-card-border py-3 pl-[max(1.5rem,env(safe-area-inset-left))] pr-[max(1.5rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:hidden">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-card-border bg-surface py-3 pl-[max(1.5rem,env(safe-area-inset-left))] pr-[max(1.5rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-10 sm:py-4">
             <button
               type="button"
               onClick={onClose}
@@ -146,26 +138,18 @@ export function StageFormModal({
             >
               ← Назад
             </button>
-            <div className="flex items-center gap-4">
-              {onDelete ? (
-                <button
-                  type="button"
-                  className="text-sm font-light tracking-[-0.02em] text-red-700 underline-offset-4 transition-opacity hover:underline hover:opacity-90 dark:text-red-400"
-                  onClick={handleDelete}
-                >
-                  Удалить
-                </button>
-              ) : null}
+            {onDelete ? (
               <button
                 type="button"
-                className="text-sm font-light tracking-[-0.02em] text-ink/70 underline-offset-4 transition-opacity hover:underline hover:opacity-90"
-                onClick={handleReset}
+                className="h-8 shrink-0 rounded-full bg-fill-contrast-bg px-4 text-xs font-light tracking-[-0.05em] text-fill-contrast-fg transition-opacity hover:opacity-90"
+                onClick={handleDelete}
+                aria-label="Удалить этап"
               >
-                Сбросить
+                Удалить этап
               </button>
-            </div>
+            ) : null}
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-6 sm:px-10 sm:pt-20">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-6 sm:px-10 sm:pt-10">
             <h2
               id={titleId}
               className="text-[clamp(2rem,5vw,4rem)] font-light leading-[0.9] tracking-[-0.09em]"
@@ -173,108 +157,135 @@ export function StageFormModal({
               {title}
             </h2>
 
-            <div className="mt-10 flex max-w-[865px] flex-col gap-12 sm:gap-[50px]">
-              <div className="flex flex-col gap-5">
-                <label className="block">
-                  <span className="sr-only">Название этапа</span>
-                  <input
-                    className={inputClass}
-                    placeholder="Название этапа"
-                    value={form.name}
-                    onChange={(e) => update('name', e.target.value)}
-                    autoFocus
-                  />
-                </label>
-                <label className="block">
-                  <span className="sr-only">Стоимость этапа</span>
-                  <CostRubInput
-                    inputClass={inputClass}
-                    placeholder="Только цифры, напр. 10000"
-                    aria-label="Стоимость этапа"
-                    valueDigits={form.cost}
-                    onChangeDigits={(d) => update('cost', d)}
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-1 block text-[10px] font-light uppercase tracking-[-0.02em] text-ink/55">
-                    Планируемое время
-                  </span>
-                  <DurationTokensInput
-                    inputClass={inputClass}
-                    placeholder="ч м с, напр. 1 30 или 0 30 0"
-                    aria-label="Планируемое время"
-                    value={form.plannedTime}
-                    onChange={(v) => update('plannedTime', v)}
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-1 block text-[10px] font-light uppercase tracking-[-0.02em] text-ink/55">
-                    Фактическое время
-                  </span>
-                  <DurationTokensInput
-                    inputClass={inputClass}
-                    placeholder="ч м с, напр. 2 15 0 — можно без таймера"
-                    aria-label="Фактическое время"
-                    value={form.actualTime}
-                    onChange={(v) => update('actualTime', v)}
-                  />
-                </label>
-              </div>
-
-              <div className="flex max-w-[405px] flex-col gap-10">
-                <div className="flex flex-col gap-5">
-                  <p className="text-base font-light leading-[0.9] tracking-[-0.09em] text-ink">
-                    Статус этапа
-                  </p>
-                  <ChipRow
-                    name="Статус этапа"
-                    options={STAGE_STATUSES}
-                    value={form.stageStatus}
-                    onChange={(v) => update('stageStatus', v)}
-                  />
+            <div className="mt-10 flex max-w-[865px] flex-col gap-6 sm:gap-8">
+              <section className="rounded-[3px] border border-card-border p-5 sm:p-6">
+                <h3 className="mb-5 text-[10px] font-light uppercase tracking-[-0.02em] text-ink/55">
+                  Основное
+                </h3>
+                <div className="grid gap-5 sm:grid-cols-2 sm:gap-x-8 sm:gap-y-5">
+                  <label className="block min-w-0">
+                    <span className="mb-1 block text-[10px] font-light uppercase tracking-[-0.02em] text-ink/55">
+                      Название этапа
+                    </span>
+                    <input
+                      className={inputClass}
+                      placeholder="Название этапа"
+                      value={form.name}
+                      onChange={(e) => update('name', e.target.value)}
+                      autoFocus
+                    />
+                  </label>
+                  <label className="block min-w-0">
+                    <span className="mb-1 block text-[10px] font-light uppercase tracking-[-0.02em] text-ink/55">
+                      Стоимость этапа
+                    </span>
+                    <CostRubInput
+                      inputClass={inputClass}
+                      placeholder="Только цифры, напр. 10000"
+                      aria-label="Стоимость этапа"
+                      valueDigits={form.cost}
+                      onChangeDigits={(d) => update('cost', d)}
+                    />
+                  </label>
                 </div>
-                <div className="flex flex-col gap-5">
-                  <p className="text-base font-light leading-[0.9] tracking-[-0.09em] text-ink">
-                    Статус оплаты
-                  </p>
-                  <ChipRow
-                    name="Статус оплаты"
-                    options={PAYMENT_STATUSES}
-                    value={form.paymentStatus}
-                    onChange={(v) => update('paymentStatus', v)}
-                  />
+              </section>
+
+              <section className="rounded-[3px] border border-card-border p-5 sm:p-6">
+                <h3 className="mb-5 text-[10px] font-light uppercase tracking-[-0.02em] text-ink/55">
+                  Время
+                </h3>
+                <div className="grid gap-5 sm:grid-cols-2 sm:gap-x-8 sm:gap-y-5">
+                  <label className="block min-w-0">
+                    <span className="mb-1 block text-[10px] font-light uppercase tracking-[-0.02em] text-ink/55">
+                      Планируемое время
+                    </span>
+                    <DurationTokensInput
+                      inputClass={inputClass}
+                      placeholder="ч м с, напр. 1 30 или 0 30 0"
+                      aria-label="Планируемое время"
+                      value={form.plannedTime}
+                      onChange={(v) => update('plannedTime', v)}
+                    />
+                  </label>
+                  <label className="block min-w-0">
+                    <span className="mb-1 block text-[10px] font-light uppercase tracking-[-0.02em] text-ink/55">
+                      Фактическое время
+                    </span>
+                    <DurationTokensInput
+                      inputClass={inputClass}
+                      placeholder="ч м с, напр. 2 15 0 — можно без таймера"
+                      aria-label="Фактическое время"
+                      value={form.actualTime}
+                      onChange={(v) => update('actualTime', v)}
+                    />
+                  </label>
                 </div>
-              </div>
+              </section>
 
-              <div className="flex flex-col gap-5">
-                <label className="block">
-                  <span className="sr-only">Комментарий</span>
-                  <textarea
-                    className={`${inputClass} min-h-[4.5rem] resize-y border-b`}
-                    placeholder="Комментарий"
-                    rows={3}
-                    value={form.comment}
-                    onChange={(e) => update('comment', e.target.value)}
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-1 block text-[10px] font-light uppercase tracking-[-0.02em] text-ink/55">
-                    Дедлайн
-                  </span>
-                  <DeadlineDdMmYyyyInput
-                    inputClass={inputClass}
-                    aria-label="Дедлайн этапа"
-                    value={form.deadline}
-                    onChange={(v) => update('deadline', v)}
-                  />
-                </label>
-              </div>
+              <section className="rounded-[3px] border border-card-border p-5 sm:p-6">
+                <h3 className="mb-6 text-[10px] font-light uppercase tracking-[-0.02em] text-ink/55">
+                  Статусы и оплата
+                </h3>
+                <div className="flex max-w-[520px] flex-col gap-8">
+                  <div className="flex flex-col gap-5">
+                    <p className="text-base font-light leading-[0.9] tracking-[-0.09em] text-ink">
+                      Статус этапа
+                    </p>
+                    <ChipRow
+                      name="Статус этапа"
+                      options={STAGE_STATUSES}
+                      value={form.stageStatus}
+                      onChange={(v) => update('stageStatus', v)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-5">
+                    <p className="text-base font-light leading-[0.9] tracking-[-0.09em] text-ink">
+                      Статус оплаты
+                    </p>
+                    <ChipRow
+                      name="Статус оплаты"
+                      options={PAYMENT_STATUSES}
+                      value={form.paymentStatus}
+                      onChange={(v) => update('paymentStatus', v)}
+                    />
+                  </div>
+                </div>
+              </section>
 
-              <div className="flex max-w-[445px] flex-col gap-5">
-                <p className="text-base font-light leading-[0.9] tracking-[-0.09em] text-ink">
+              <section className="rounded-[3px] border border-card-border p-5 sm:p-6">
+                <h3 className="mb-5 text-[10px] font-light uppercase tracking-[-0.02em] text-ink/55">
+                  Комментарий и срок
+                </h3>
+                <div className="flex flex-col gap-5">
+                  <label className="block">
+                    <span className="sr-only">Комментарий</span>
+                    <textarea
+                      className={`${inputClass} min-h-[4.5rem] resize-y border-b`}
+                      placeholder="Комментарий"
+                      rows={3}
+                      value={form.comment}
+                      onChange={(e) => update('comment', e.target.value)}
+                    />
+                  </label>
+                  <label className="block max-w-md">
+                    <span className="mb-1 block text-[10px] font-light uppercase tracking-[-0.02em] text-ink/55">
+                      Дедлайн
+                    </span>
+                    <DeadlineDdMmYyyyInput
+                      inputClass={inputClass}
+                      aria-label="Дедлайн этапа"
+                      value={form.deadline}
+                      onChange={(v) => update('deadline', v)}
+                    />
+                  </label>
+                </div>
+              </section>
+
+              <section className="rounded-[3px] border border-card-border p-5 sm:p-6">
+                <h3 className="mb-5 text-[10px] font-light uppercase tracking-[-0.02em] text-ink/55">
                   Список задач
-                </p>
-                <div className="flex flex-col gap-4">
+                </h3>
+                <div className="flex max-w-[445px] flex-col gap-4">
                   {form.checklist.map((item) => (
                     <div
                       key={item.id}
@@ -327,37 +338,30 @@ export function StageFormModal({
                       </button>
                     </div>
                   ))}
+                  <button
+                    type="button"
+                    className="self-start text-sm font-light tracking-[-0.02em] text-ink underline-offset-4 hover:underline"
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        checklist: [
+                          ...f.checklist,
+                          { id: newChecklistId(), label: '', done: false },
+                        ],
+                      }))
+                    }
+                  >
+                    + Добавить задачу
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  className="self-start text-sm font-light tracking-[-0.02em] text-ink underline-offset-4 hover:underline"
-                  onClick={() =>
-                    setForm((f) => ({
-                      ...f,
-                      checklist: [
-                        ...f.checklist,
-                        { id: newChecklistId(), label: '', done: false },
-                      ],
-                    }))
-                  }
-                >
-                  + Добавить задачу
-                </button>
-              </div>
+              </section>
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-3 border-t border-card-border bg-surface px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-10 sm:py-6">
-            <button
-              type="button"
-              className="h-10 flex-1 rounded-full border border-card-border bg-surface px-6 text-sm font-light tracking-[-0.05em] text-ink transition-colors hover:bg-ink/[0.04] sm:h-8 sm:flex-none sm:px-5"
-              onClick={onClose}
-            >
-              Отмена
-            </button>
+          <div className="flex shrink-0 flex-wrap items-center justify-start gap-3 border-t border-card-border bg-surface px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-10 sm:py-6">
             <button
               type="submit"
-              className="h-10 flex-1 rounded-full bg-fill-contrast-bg px-6 text-sm font-light tracking-[-0.05em] text-fill-contrast-fg transition-opacity hover:opacity-90 sm:h-8 sm:flex-none sm:px-5"
+              className="h-8 rounded-full bg-fill-contrast-bg px-5 text-sm font-light tracking-[-0.05em] text-fill-contrast-fg transition-opacity hover:opacity-90"
             >
               {submitLabel}
             </button>

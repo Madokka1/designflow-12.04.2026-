@@ -10,6 +10,7 @@ import {
 } from '../lib/parseRuDate'
 import type { CalendarCustomEvent } from '../types/calendarCustomEvent'
 import type { Project } from '../types/project'
+import type { WorkspaceTask } from '../types/workspaceTask'
 
 const BORDER = 'border-card-border'
 
@@ -49,9 +50,12 @@ type CalendarEventItem = {
   label: string
   sublabel?: string
   slug?: string
+  /** Якорь /tasks#task-… */
+  taskId?: string
 }
 
 function eventTone(e: CalendarEventItem): 'neutral' | 'warning' | 'info' {
+  if (e.taskId) return 'info'
   if (!e.slug) return 'neutral'
   if (e.label.toLowerCase() === 'дедлайн') return 'warning'
   return 'info'
@@ -150,6 +154,7 @@ function collectCustomCalendarItems(
 ): CalendarEventItem[] {
   const out: CalendarEventItem[] = []
   for (const c of custom) {
+    if (c.taskId) continue
     const d = parseRuDate(c.dateRaw)
     if (!d) continue
     out.push({
@@ -162,9 +167,37 @@ function collectCustomCalendarItems(
   return out
 }
 
+function collectTasksCalendarItems(
+  tasks: readonly WorkspaceTask[],
+  projects: readonly Project[],
+): CalendarEventItem[] {
+  const titleBySlug = new Map(
+    projects.map((p) => [p.slug, p.title] as const),
+  )
+  const out: CalendarEventItem[] = []
+  for (const t of tasks) {
+    const d = parseRuDate(t.dueDate)
+    if (!d) continue
+    const slug = t.projectSlug ?? undefined
+    const sub =
+      (slug && titleBySlug.get(slug)) ||
+      (t.comment.trim() ? t.comment.trim() : undefined)
+    out.push({
+      id: `task-cal-${t.id}`,
+      date: d,
+      label: t.title,
+      sublabel: sub,
+      slug,
+      taskId: t.id,
+    })
+  }
+  out.sort((a, b) => a.date.getTime() - b.date.getTime())
+  return out
+}
+
 export function CalendarPage() {
   const location = useLocation()
-  const { projects, calendarCustomEvents, addCalendarCustomEvent } =
+  const { projects, tasks, calendarCustomEvents, addCalendarCustomEvent } =
     useProjects()
   const now = new Date()
   const [cursor, setCursor] = useState(() => ({
@@ -183,10 +216,11 @@ export function CalendarPage() {
   const allEvents = useMemo(() => {
     const fromProjects = collectEventsFromProjects(projects)
     const fromCustom = collectCustomCalendarItems(calendarCustomEvents)
-    return [...fromProjects, ...fromCustom].sort(
+    const fromTasks = collectTasksCalendarItems(tasks, projects)
+    return [...fromProjects, ...fromCustom, ...fromTasks].sort(
       (a, b) => a.date.getTime() - b.date.getTime(),
     )
-  }, [projects, calendarCustomEvents])
+  }, [projects, tasks, calendarCustomEvents])
 
   const monthEvents = useMemo(
     () =>
@@ -440,11 +474,13 @@ export function CalendarPage() {
                           {ev.label}
                         </p>
                         <span className={pillClass(tone)}>
-                          {tone === 'warning'
-                            ? 'дедлайн'
-                            : tone === 'info'
-                              ? 'проект'
-                              : 'событие'}
+                          {ev.taskId
+                            ? 'задача'
+                            : tone === 'warning'
+                              ? 'дедлайн'
+                              : tone === 'info'
+                                ? 'проект'
+                                : 'событие'}
                         </span>
                       </div>
                       {ev.sublabel ? (
@@ -459,7 +495,15 @@ export function CalendarPage() {
                   </div>
                 )
 
-                return ev.slug ? (
+                return ev.taskId ? (
+                  <Link
+                    key={ev.id}
+                    to={`/tasks#task-${ev.taskId}`}
+                    className="block outline-none ring-ink transition-opacity hover:opacity-95 focus-visible:ring-2"
+                  >
+                    {card}
+                  </Link>
+                ) : ev.slug ? (
                   <Link
                     key={ev.id}
                     to={`/projects/${ev.slug}`}

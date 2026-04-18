@@ -87,7 +87,7 @@ export function ReportsPage() {
         окончания сессии). У транзакций в модели нет дат — финансы всегда за всё время.
       </p>
 
-      <div className="mt-6 flex max-w-xl flex-wrap items-end gap-4 border border-card-border p-4">
+      <div className="mt-6 flex max-w-xl flex-wrap items-end gap-4 rounded-[3px] border border-card-border p-4">
         <label className="flex flex-col gap-1 text-xs font-light text-ink/60">
           Таймер: с даты
           <input
@@ -150,7 +150,7 @@ export function ReportsPage() {
 
 function StatCard({ title, lines }: { title: string; lines: string[] }) {
   return (
-    <section className="border border-card-border p-5">
+    <section className="rounded-[3px] border border-card-border p-5">
       <h2 className="text-[10px] font-light uppercase tracking-[-0.02em] text-ink/55">
         {title}
       </h2>

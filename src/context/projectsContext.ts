@@ -28,7 +28,7 @@ export type ProjectsContextValue = {
   ) => void
   calendarCustomEvents: CalendarCustomEvent[]
   addCalendarCustomEvent: (
-    data: Omit<CalendarCustomEvent, 'id'>,
+    data: Omit<CalendarCustomEvent, 'id' | 'taskId'>,
   ) => void
   addProject: (
     data: CreateProjectForm,
@@ -48,6 +48,11 @@ export type ProjectsContextValue = {
     projectSlug: string,
     stageId: string,
     direction: 'up' | 'down',
+  ) => void
+  /** Новый порядок этапов (массив как в UI); пересохраняет sort_order в Supabase. */
+  reorderProjectStages: (
+    projectSlug: string,
+    nextStages: readonly ProjectStage[],
   ) => void
   getProjectBySlug: (slug: string) => Project | undefined
   setProjectArchived: (projectSlug: string, archived: boolean) => void

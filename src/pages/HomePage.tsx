@@ -1,14 +1,18 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { formatDurationRu } from '../lib/formatDurationRu'
-import { parseAmountRub } from '../lib/parseAmountRub'
+import { portfolioTurnoverRub } from '../lib/portfolioTurnoverRub'
 import { parseRuDate } from '../lib/parseRuDate'
 import { useNotesContext } from '../hooks/useNotesContext'
-import { partitionProjectCardTags } from '../lib/projectSection'
+import {
+  getProjectSection,
+  partitionProjectCardTags,
+} from '../lib/projectSection'
 import { projectCardTagChipClass } from '../lib/tagChipClasses'
 import { useProjects } from '../hooks/useProjects'
 import type { CalendarCustomEvent } from '../types/calendarCustomEvent'
 import type { Project } from '../types/project'
+import type { WorkspaceTask } from '../types/workspaceTask'
 
 const CARD_FALLBACK_TAGS = ['В работе', 'Разработка'] as const
 
@@ -77,8 +81,12 @@ type AgendaItem = {
 function collectAgendaItems(
   projects: readonly Project[],
   custom: readonly CalendarCustomEvent[],
+  tasks: readonly WorkspaceTask[],
 ): AgendaItem[] {
   const out: AgendaItem[] = []
+  const projectTitleBySlug = new Map(
+    projects.map((p) => [p.slug, p.title] as const),
+  )
   for (const p of projects) {
     const pd = parseRuDate(p.deadline)
     if (pd) {
@@ -104,6 +112,7 @@ function collectAgendaItems(
     }
   }
   for (const c of custom) {
+    if (c.taskId) continue
     const d = parseRuDate(c.dateRaw)
     if (!d) continue
     out.push({
@@ -111,6 +120,21 @@ function collectAgendaItems(
       date: startOfDay(d),
       label: c.title,
       sublabel: c.comment,
+    })
+  }
+  for (const t of tasks) {
+    const d = parseRuDate(t.dueDate)
+    if (!d) continue
+    const slug = t.projectSlug ?? undefined
+    const sub =
+      (slug && projectTitleBySlug.get(slug)) ||
+      (t.comment.trim() ? t.comment.trim() : undefined)
+    out.push({
+      id: `task-${t.id}`,
+      date: startOfDay(d),
+      label: t.title,
+      sublabel: sub,
+      slug,
     })
   }
   out.sort((a, b) => a.date.getTime() - b.date.getTime())
@@ -361,28 +385,19 @@ export function HomePage() {
     projects,
     financeTransactions,
     calendarCustomEvents,
+    tasks,
     timerSessionLog,
   } = useProjects()
   const { notes } = useNotesContext()
 
-  const totalRevenue = useMemo(() => {
-    let projectsTotal = 0
-    for (const p of projects) {
-      const tags = p.tags ?? []
-      if (!tags.includes('оплачено')) continue
-      projectsTotal += parseAmountRub(p.amount)
-    }
-    let transactionNet = 0
-    for (const t of financeTransactions) {
-      transactionNet +=
-        t.kind === 'income' ? t.amountRub : -t.amountRub
-    }
-    return projectsTotal + transactionNet
-  }, [projects, financeTransactions])
+  const totalRevenue = useMemo(
+    () => portfolioTurnoverRub(projects, financeTransactions),
+    [projects, financeTransactions],
+  )
 
   const agenda = useMemo(
-    () => collectAgendaItems(projects, calendarCustomEvents),
-    [projects, calendarCustomEvents],
+    () => collectAgendaItems(projects, calendarCustomEvents, tasks),
+    [projects, calendarCustomEvents, tasks],
   )
 
   const nearest = useMemo(() => {
@@ -408,7 +423,13 @@ export function HomePage() {
     [notes, projects, calendarCustomEvents],
   )
 
-  const previewProjects = useMemo(() => projects.slice(0, 2), [projects])
+  const previewProjects = useMemo(
+    () =>
+      projects
+        .filter((p) => !p.archived && getProjectSection(p) === 'Разработка')
+        .slice(0, 2),
+    [projects],
+  )
 
   const projectCount = projects.length
 
@@ -438,7 +459,7 @@ export function HomePage() {
         <div className="grid min-h-0 grid-cols-1 gap-2 pb-2 lg:h-full lg:min-h-0 lg:grid-cols-[minmax(240px,18rem)_1fr] lg:gap-6 lg:pb-0">
           <aside className="flex min-h-0 flex-col gap-4 lg:h-full lg:min-h-0">
             <div
-              className={`flex min-h-[100px] flex-1 flex-col justify-center border ${BORDER} p-5 lg:min-h-0`}
+              className={`flex min-h-[100px] flex-1 flex-col justify-center rounded-[3px] border ${BORDER} p-5 lg:min-h-0`}
             >
               <p className="text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink/50">
                 Общая выручка
@@ -455,7 +476,7 @@ export function HomePage() {
             </div>
 
             <div
-              className={`flex min-h-[100px] flex-1 flex-col justify-center border ${BORDER} p-5 lg:min-h-0`}
+              className={`flex min-h-[100px] flex-1 flex-col justify-center rounded-[3px] border ${BORDER} p-5 lg:min-h-0`}
             >
               <p className="text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink/50">
                 Проектов
@@ -472,7 +493,7 @@ export function HomePage() {
             </div>
 
             <div
-              className={`flex min-h-[100px] flex-1 flex-col justify-center border ${BORDER} p-5 lg:min-h-0`}
+              className={`flex min-h-[100px] flex-1 flex-col justify-center rounded-[3px] border ${BORDER} p-5 lg:min-h-0`}
             >
               <p className="text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink/50">
                 Сегодня по таймеру
@@ -492,7 +513,7 @@ export function HomePage() {
             </div>
 
             <div
-              className={`flex min-h-[100px] flex-1 flex-col justify-center border ${BORDER} p-5 lg:min-h-0`}
+              className={`flex min-h-[100px] flex-1 flex-col justify-center rounded-[3px] border ${BORDER} p-5 lg:min-h-0`}
             >
               <p className="text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink/50">
                 Ближайший дедлайн
@@ -517,6 +538,13 @@ export function HomePage() {
                     >
                       Проект →
                     </Link>
+                  ) : nearest.id.startsWith('task-') ? (
+                    <Link
+                      to={`/tasks#${nearest.id}`}
+                      className="mt-auto pt-3 text-[11px] font-light text-ink/55 underline-offset-4 hover:text-ink hover:underline"
+                    >
+                      Задача →
+                    </Link>
                   ) : (
                     <Link
                       to="/calendar"
@@ -535,7 +563,7 @@ export function HomePage() {
           </aside>
 
           <section
-            className={`flex min-h-[280px] flex-col border ${BORDER} p-5 lg:h-full lg:min-h-0 lg:overflow-hidden`}
+            className={`flex min-h-[280px] flex-col rounded-[3px] border ${BORDER} p-5 lg:h-full lg:min-h-0 lg:overflow-hidden`}
           >
             <div className="flex shrink-0 flex-wrap items-start justify-between gap-2">
               <div>

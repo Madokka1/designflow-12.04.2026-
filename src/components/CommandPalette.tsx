@@ -69,6 +69,7 @@ export function CommandPalette() {
   const allItems = useMemo(() => {
     const calendarItems: Item[] = []
     for (const c of calendarCustomEvents) {
+      if (c.taskId) continue
       const d = parseRuDate(c.dateRaw)
       if (!d) continue
       calendarItems.push({
@@ -77,6 +78,17 @@ export function CommandPalette() {
         hint: 'Событие календаря',
         to: `/calendar#cal-day-${isoDayKey(d)}`,
         haystack: `${c.dateRaw} ${c.comment ?? ''}`,
+      })
+    }
+    for (const t of tasks) {
+      const d = parseRuDate(t.dueDate)
+      if (!d) continue
+      calendarItems.push({
+        id: `cal-task-${t.id}`,
+        label: t.title,
+        hint: 'Задача в календаре',
+        to: `/calendar#cal-day-${isoDayKey(d)}`,
+        haystack: `${t.dueDate} ${t.comment} ${t.labels.join(' ')}`,
       })
     }
     for (const p of projects) {
@@ -267,23 +279,23 @@ export function CommandPalette() {
           </p>
           <ul className="mt-1 space-y-0.5 text-[10px] font-light leading-snug text-ink/50">
             <li>
-              <kbd className="rounded border border-card-border px-1 font-mono text-[9px]">
+              <kbd className="rounded-[3px] border border-card-border px-1 font-mono text-[9px]">
                 ⌘K
               </kbd>{' '}
               /{' '}
-              <kbd className="rounded border border-card-border px-1 font-mono text-[9px]">
+              <kbd className="rounded-[3px] border border-card-border px-1 font-mono text-[9px]">
                 Ctrl+K
               </kbd>{' '}
               — командная палитра
             </li>
             <li>
-              <kbd className="rounded border border-card-border px-1 font-mono text-[9px]">
+              <kbd className="rounded-[3px] border border-card-border px-1 font-mono text-[9px]">
                 Esc
               </kbd>{' '}
               — закрыть диалог / палитру (где открыто)
             </li>
             <li>
-              <kbd className="rounded border border-card-border px-1 font-mono text-[9px]">
+              <kbd className="rounded-[3px] border border-card-border px-1 font-mono text-[9px]">
                 Tab
               </kbd>{' '}
               — переход по полям; в модальных окнах фокус не уходит за пределы окна

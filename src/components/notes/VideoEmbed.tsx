@@ -6,7 +6,7 @@ export function VideoEmbed({ url }: { url: string }) {
   const yt = youtubeVideoId(u)
   if (yt) {
     return (
-      <div className="aspect-video w-full max-w-3xl overflow-hidden rounded border border-[rgba(10,10,10,0.2)] bg-ink/[0.03]">
+      <div className="aspect-video w-full max-w-3xl overflow-hidden rounded-[3px] border border-[rgba(10,10,10,0.2)] bg-ink/[0.03]">
         <iframe
           title="Встроенное видео"
           className="h-full w-full"
@@ -20,7 +20,7 @@ export function VideoEmbed({ url }: { url: string }) {
   const vm = vimeoVideoId(u)
   if (vm) {
     return (
-      <div className="aspect-video w-full max-w-3xl overflow-hidden rounded border border-[rgba(10,10,10,0.2)] bg-ink/[0.03]">
+      <div className="aspect-video w-full max-w-3xl overflow-hidden rounded-[3px] border border-[rgba(10,10,10,0.2)] bg-ink/[0.03]">
         <iframe
           title="Встроенное видео"
           className="h-full w-full"
@@ -33,7 +33,7 @@ export function VideoEmbed({ url }: { url: string }) {
   }
   return (
     <video
-      className="max-h-[min(70vh,480px)] w-full rounded border border-[rgba(10,10,10,0.2)] bg-ink/[0.04]"
+      className="max-h-[min(70vh,480px)] w-full rounded-[3px] border border-[rgba(10,10,10,0.2)] bg-ink/[0.04]"
       src={u}
       controls
       playsInline

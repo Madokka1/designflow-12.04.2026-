@@ -124,7 +124,7 @@ export function AddTransactionModal({
                           type="button"
                           aria-pressed={selected}
                           onClick={() => setForm((f) => ({ ...f, kind: id }))}
-                          className={`rounded-[5px] border border-ink px-1.5 py-1 text-[10px] font-light uppercase leading-none tracking-[-0.02em] transition-colors duration-150 ${
+                          className={`rounded-[3px] border border-ink px-1.5 py-1 text-[10px] font-light uppercase leading-none tracking-[-0.02em] transition-colors duration-150 ${
                             selected ? 'bg-ink/10' : 'bg-surface hover:bg-ink/5'
                           }`}
                         >

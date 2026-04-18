@@ -139,12 +139,12 @@ export function BlockInsertMenu({ anchor, onClose, onPick }: Props) {
 
   const panelBorder = 'border-card-border'
   const iconBox =
-    'flex h-8 w-8 shrink-0 items-center justify-center rounded border border-card-border text-[11px] font-light text-ink/55'
+    'flex h-8 w-8 shrink-0 items-center justify-center rounded-[3px] border border-card-border text-[11px] font-light text-ink/55'
 
   return (
     <div
       ref={ref}
-      className={`fixed z-[90] max-h-[min(420px,70vh)] w-[min(100vw-2rem,380px)] overflow-y-auto rounded-lg border ${panelBorder} bg-surface/95 py-2 shadow-[0_8px_32px_rgba(10,10,10,0.08)] backdrop-blur-[20px] dark:shadow-[0_8px_32px_rgba(0,0,0,0.45)]`}
+      className={`fixed z-[90] max-h-[min(420px,70vh)] w-[min(100vw-2rem,380px)] overflow-y-auto rounded-[3px] border ${panelBorder} bg-surface/95 py-2 shadow-[0_8px_32px_rgba(10,10,10,0.08)] backdrop-blur-[20px] dark:shadow-[0_8px_32px_rgba(0,0,0,0.45)]`}
       style={{
         top: anchor.top + 6,
         left: Math.min(anchor.left, window.innerWidth - 380 - 16),
@@ -161,7 +161,7 @@ export function BlockInsertMenu({ anchor, onClose, onPick }: Props) {
             typeof section.badge === 'string' &&
             section.badge ? (
               <span
-                className={`rounded border ${panelBorder} bg-ink/[0.04] px-1.5 py-px text-[10px] font-light tracking-[-0.02em] text-ink/80`}
+                className={`rounded-[3px] border ${panelBorder} bg-ink/[0.04] px-1.5 py-px text-[10px] font-light tracking-[-0.02em] text-ink/80`}
               >
                 {section.badge}
               </span>
@@ -172,7 +172,7 @@ export function BlockInsertMenu({ anchor, onClose, onPick }: Props) {
               key={item.id + String(idx)}
               type="button"
               role="option"
-              className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-left text-sm font-light tracking-[-0.02em] text-ink transition-colors hover:bg-ink/[0.04]"
+              className="flex w-full items-center gap-3 rounded-[3px] px-2 py-2 text-left text-sm font-light tracking-[-0.02em] text-ink transition-colors hover:bg-ink/[0.04]"
               onClick={() => {
                 const block = item.block()
                 onPick({ ...block, id: newBlockId() })

@@ -10,7 +10,6 @@ import type { Note } from '../types/note'
 import { useAuth } from '../hooks/useAuth'
 import { useSettings } from '../hooks/useSettings'
 import { newNoteId } from '../lib/newNoteId'
-import { insertNoteRevision } from '../lib/noteRevisionsSupabase'
 import {
   deleteNoteFromSupabase,
   fetchNotesFromSupabase,
@@ -23,8 +22,6 @@ import {
 } from './notesContext'
 
 const STORAGE_KEY = 'portfolio-notes-v2'
-/** Не чаще одной ревизии на заметку (снимок до сохранения), чтобы не забивать БД при автосохранении. */
-const NOTE_REVISION_MIN_INTERVAL_MS = 90_000
 
 function noteSlug(title: string): string {
   const base =
@@ -130,7 +127,6 @@ export function NotesProvider({ children }: { children: ReactNode }) {
   const [notes, setNotes] = useState<Note[]>(() => loadNotes())
   const notesMergedForUser = useRef<string | null>(null)
   const readOnlyPrev = useRef(readOnly)
-  const noteRevisionLastAtRef = useRef<Map<string, number>>(new Map())
 
   useEffect(() => {
     saveNotes(notes)
@@ -257,27 +253,9 @@ export function NotesProvider({ children }: { children: ReactNode }) {
         const next = prev.map((n) => (n.slug === slug ? { ...n, ...patch } : n))
         const updated = next.find((n) => n.slug === slug)
         if (updated && prevNote && client && userId && !readOnly) {
-          const snapshot =
-            typeof structuredClone === 'function'
-              ? structuredClone(prevNote)
-              : (JSON.parse(JSON.stringify(prevNote)) as Note)
           queueMicrotask(() => {
             void (async () => {
               setPortfolioSync({ kind: 'saving' })
-              const now = Date.now()
-              const last = noteRevisionLastAtRef.current.get(slug) ?? 0
-              if (now - last >= NOTE_REVISION_MIN_INTERVAL_MS) {
-                noteRevisionLastAtRef.current.set(slug, now)
-                const revErr = await insertNoteRevision(
-                  client,
-                  userId,
-                  slug,
-                  snapshot,
-                )
-                if (revErr) {
-                  console.warn('[note revision]', revErr.message)
-                }
-              }
               const res = await upsertNoteToSupabase(client, userId, updated)
               if (!res) {
                 setPortfolioSync({

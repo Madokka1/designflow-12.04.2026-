@@ -87,7 +87,7 @@ export function TimerTrackerWidget() {
         </span>
         {pomodoroEndsAt != null && pomodoroLeft > 0 ? (
           <span
-            className="shrink-0 rounded-md border border-card-border px-2 py-0.5 font-mono text-xs tabular-nums text-ink/90"
+            className="shrink-0 rounded-[3px] border border-card-border px-2 py-0.5 font-mono text-xs tabular-nums text-ink/90"
             title="Помодоро 25 минут"
           >
             {formatMmSs(pomodoroLeft)}

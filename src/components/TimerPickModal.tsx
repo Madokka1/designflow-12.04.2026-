@@ -111,7 +111,7 @@ export function TimerPickModal({
                   <li key={p.slug}>
                     <button
                       type="button"
-                      className="flex w-full flex-col items-start gap-0.5 rounded-md border border-transparent px-3 py-3 text-left transition-colors hover:border-card-border hover:bg-ink/[0.03]"
+                      className="flex w-full flex-col items-start gap-0.5 rounded-[3px] border border-transparent px-3 py-3 text-left transition-colors hover:border-card-border hover:bg-ink/[0.03]"
                       onClick={() => pickProject(p.slug)}
                     >
                       <span className="text-base font-light tracking-[-0.04em] text-ink">
@@ -131,7 +131,7 @@ export function TimerPickModal({
                 <li key={st.id}>
                   <button
                     type="button"
-                    className="flex w-full flex-col items-start gap-0.5 rounded-md border border-transparent px-3 py-3 text-left transition-colors hover:border-card-border hover:bg-ink/[0.03]"
+                    className="flex w-full flex-col items-start gap-0.5 rounded-[3px] border border-transparent px-3 py-3 text-left transition-colors hover:border-card-border hover:bg-ink/[0.03]"
                     onClick={() => startOnStage(st.id)}
                   >
                     <span className="text-base font-light tracking-[-0.04em] text-ink">

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { AddTransactionModal } from '../components/AddTransactionModal'
+import { portfolioTurnoverRub } from '../lib/portfolioTurnoverRub'
 import { formatRubDots, parseAmountRub } from '../lib/parseAmountRub'
+import { sumAwaitingPaymentStageCostsRub } from '../lib/stageCostSum'
 import { getProjectSection } from '../lib/projectSection'
 import { PROJECT_PAYMENT_STATUSES } from '../types/projectForm'
 import { useProjects } from '../hooks/useProjects'
@@ -164,10 +166,10 @@ export function FinancePage() {
     }
 
     /**
-     * Итог «Оборот» / «Анализ»: полностью оплаченные проекты + уже полученная сумма
-     * по поэтапной оплате (поле amount у таких проектов = оплаченные этапы) + транзакции.
+     * Итог «Оборот» / «Анализ» — та же формула, что «Общая выручка» на главной
+     * (`portfolioTurnoverRub`).
      */
-    const total = paidProjectsSum + amt.staged + transactionNet
+    const total = portfolioTurnoverRub(projects, financeTransactions)
 
     const pct = (part: number) =>
       allProjectsSum > 0 ? Math.round((part / allProjectsSum) * 100) : 0
@@ -198,7 +200,13 @@ export function FinancePage() {
   const logProjects = useMemo(() => {
     if (logTab === 'all') return projects
     if (logTab === 'awaiting_payment') {
-      return projects.filter(isUnpaidNonPersonal)
+      return projects.filter((p) => {
+        if (!isUnpaidNonPersonal(p)) return false
+        if (paymentTag(p) === 'поэтапная оплата') {
+          return sumAwaitingPaymentStageCostsRub(p.stages) > 0
+        }
+        return true
+      })
     }
     return projects.filter((p) => getProjectSection(p) === logTab)
   }, [projects, logTab])
@@ -227,7 +235,7 @@ export function FinancePage() {
         {/* Левая колонка: оборот + логи */}
         <div className="min-w-0 flex-1 space-y-6">
           <section
-            className={`flex flex-col gap-10 border ${BORDER_MAIN} p-5 sm:p-5`}
+            className={`flex flex-col gap-10 rounded-[3px] border ${BORDER_MAIN} p-5 sm:p-5`}
           >
             <div className="flex flex-col gap-3">
               <p className="text-base font-light leading-[0.9] tracking-[-0.09em]">
@@ -267,7 +275,7 @@ export function FinancePage() {
               </p>
             </div>
 
-            <div className="flex flex-col gap-10 divide-y divide-black lg:flex-row lg:gap-0 lg:divide-x lg:divide-y-0">
+            <div className="grid grid-cols-1 gap-[20px] sm:grid-cols-2 xl:grid-cols-4">
               <BreakdownCol
                 amount={stats.amt.paid}
                 subline={projectsWord(stats.cnt.paid)}
@@ -299,7 +307,9 @@ export function FinancePage() {
             </div>
           </section>
 
-          <section className={`flex flex-col gap-10 border ${BORDER_MAIN} p-5 sm:p-5`}>
+          <section
+            className={`flex flex-col gap-10 rounded-[3px] border ${BORDER_MAIN} p-5 sm:p-5`}
+          >
             <p className="text-sm font-light leading-[0.9] tracking-[-0.06em]">
               Логи
             </p>
@@ -362,7 +372,10 @@ export function FinancePage() {
                     : projectStatusPill(row.project)
                   const amountRub = isTx
                     ? row.tx.amountRub
-                    : parseAmountRub(row.project.amount)
+                    : logTab === 'awaiting_payment' &&
+                        paymentTag(row.project) === 'поэтапная оплата'
+                      ? sumAwaitingPaymentStageCostsRub(row.project.stages)
+                      : parseAmountRub(row.project.amount)
                   const amountPrefix = isTx
                     ? row.tx.kind === 'income'
                       ? '+'
@@ -427,7 +440,7 @@ export function FinancePage() {
 
         {/* Правая колонка: анализ */}
         <aside
-          className={`w-full shrink-0 border ${BORDER_MAIN} p-5 sm:p-5 xl:max-w-[445px]`}
+          className={`w-full shrink-0 rounded-[3px] border ${BORDER_MAIN} p-5 sm:p-5 xl:max-w-[445px]`}
         >
           <div className="flex flex-col gap-3">
             <p className="text-base font-light leading-[0.9] tracking-[-0.09em]">
@@ -510,6 +523,9 @@ export function FinancePage() {
   )
 }
 
+const BREAKDOWN_CARD =
+  'flex min-h-[148px] flex-col justify-between rounded-[3px] border border-[rgba(10,10,10,0.32)] p-5 transition-[background-color,border-color] duration-300 ease-out hover:border-[rgba(10,10,10)] hover:bg-ink/[0.02]'
+
 function BreakdownCol({
   amount,
   subline,
@@ -524,27 +540,27 @@ function BreakdownCol({
   barColor: string
 }) {
   return (
-    <div className="flex min-h-[120px] flex-1 flex-col justify-between gap-2.5 pt-10 first:pt-0 lg:px-5 lg:pt-0 lg:first:pl-0">
-      <div className="flex flex-row flex-wrap items-center justify-between gap-2.5">
-        <p className="text-base font-light leading-[0.9] tracking-[-0.09em]">
-          {formatRubDots(amount)}
-        </p>
-        <p className="text-base font-light leading-[0.9] tracking-[-0.09em]">
-          {subline}
-        </p>
-      </div>
-      <div className="flex flex-col gap-2.5">
-        <div className="flex flex-row items-center justify-between">
-          <span className="text-[10px] font-light uppercase leading-none tracking-[-0.02em]">
+    <article className={BREAKDOWN_CARD}>
+      <div className="flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-2">
+          <span className="text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink/65">
             {label}
           </span>
-          <span className="text-[10px] font-light uppercase leading-none tracking-[-0.02em]">
+          <span className="shrink-0 text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink/55">
             {pct}%
           </span>
         </div>
-        <div className="flex h-2 flex-row gap-2.5 rounded-full bg-ink/[0.06]">
+        <p className="text-[clamp(1.35rem,3.5vw,1.85rem)] font-light leading-[0.95] tracking-[-0.06em]">
+          {formatRubDots(amount)}
+        </p>
+        <p className="text-sm font-light leading-snug tracking-[-0.02em] text-ink/75">
+          {subline}
+        </p>
+      </div>
+      <div className="mt-5 flex flex-col gap-2">
+        <div className="h-0.5 w-full overflow-hidden rounded-full bg-[rgba(10,10,10,0.1)]">
           <div
-            className="h-full min-w-0 rounded-full transition-[width] duration-300"
+            className="h-full rounded-full transition-[width] duration-500"
             style={{
               width: `${Math.min(100, pct)}%`,
               backgroundColor: barColor,
@@ -552,7 +568,7 @@ function BreakdownCol({
           />
         </div>
       </div>
-    </div>
+    </article>
   )
 }
 
@@ -593,7 +609,7 @@ function AnalysisBar({
   const flex = (n: number) => (total > 0 ? Math.max(n, 0) : 0)
 
   return (
-    <div className="flex h-10 w-full max-w-[405px] flex-row items-stretch overflow-hidden rounded-sm">
+    <div className="flex h-10 w-full max-w-[405px] flex-row items-stretch overflow-hidden rounded-[3px]">
       {flex(paid) > 0 && (
         <div
           className="min-w-0 bg-ink"
@@ -622,7 +638,7 @@ function AnalysisBar({
         </div>
       )}
       {total === 0 && (
-        <div className="h-full w-full rounded-sm bg-ink/[0.06]" />
+        <div className="h-full w-full rounded-[3px] bg-ink/[0.06]" />
       )}
     </div>
   )

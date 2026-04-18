@@ -87,7 +87,7 @@ export function NoteBlockRead({ block }: { block: NoteBlock }) {
       )
     case 'code':
       return (
-        <pre className="overflow-x-auto rounded border border-[rgba(10,10,10,0.15)] bg-[rgba(10,10,10,0.06)] p-4 font-mono text-sm leading-relaxed text-ink">
+        <pre className="overflow-x-auto rounded-[3px] border border-[rgba(10,10,10,0.15)] bg-[rgba(10,10,10,0.06)] p-4 font-mono text-sm leading-relaxed text-ink">
           <code>{block.text || '\u00a0'}</code>
         </pre>
       )
@@ -118,7 +118,7 @@ export function NoteBlockRead({ block }: { block: NoteBlock }) {
           <img
             src={src}
             alt={block.text || ''}
-            className="max-h-[min(70vh,520px)] w-full rounded border border-[rgba(10,10,10,0.12)] object-contain"
+            className="max-h-[min(70vh,520px)] w-full rounded-[3px] border border-[rgba(10,10,10,0.12)] object-contain"
           />
           {block.text ? (
             <figcaption className="mt-2 text-center text-sm font-light text-ink/65">

@@ -104,7 +104,7 @@ export function ClientsPage() {
           <li
             key={c.id}
             id={`client-${c.id}`}
-            className={`border border-card-border p-5 ${
+            className={`rounded-[3px] border border-card-border p-5 ${
               focusId === c.id ? 'ring-2 ring-ink/20' : ''
             }`}
           >

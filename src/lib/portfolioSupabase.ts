@@ -216,11 +216,18 @@ export async function fetchPortfolioBundle(
   if (e4) throw e4
 
   const calendarCustomEvents: CalendarCustomEvent[] = (cal ?? []).map(
-    (r: { id: string; title: string; date_raw: string; comment: string | null }) => ({
+    (r: {
+      id: string
+      title: string
+      date_raw: string
+      comment: string | null
+      task_id?: string | null
+    }) => ({
       id: r.id,
       title: r.title,
       dateRaw: r.date_raw,
       comment: r.comment ?? undefined,
+      taskId: r.task_id ?? undefined,
     }),
   )
 
@@ -459,9 +466,21 @@ export async function upsertCalendarEventRemote(
       title: ev.title,
       date_raw: ev.dateRaw,
       comment: ev.comment ?? null,
+      task_id: ev.taskId ?? null,
     },
     { onConflict: 'id' },
   )
+  return error
+}
+
+export async function deleteCalendarEventRemote(
+  client: SupabaseClient,
+  eventId: string,
+): Promise<Error | null> {
+  const { error } = await client
+    .from('calendar_custom_events')
+    .delete()
+    .eq('id', eventId)
   return error
 }
 

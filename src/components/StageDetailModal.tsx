@@ -7,6 +7,7 @@ import {
   modalStageHeaderChipClass,
   projectCardTagChipClass,
 } from '../lib/tagChipClasses'
+import { AutolinkText } from './AutolinkText'
 import { formatDurationRu } from '../lib/formatDurationRu'
 import { stagePlannedRows } from '../lib/stagePlannedRows'
 import type { Project, ProjectStage } from '../types/project'
@@ -85,24 +86,24 @@ export function StageDetailModal({
         aria-labelledby={titleId}
         className={`ui-modal-panel-right relative flex h-full max-h-[100dvh] min-h-0 w-full max-w-[525px] flex-col border-l ${modalEdgeBorderClass} bg-surface shadow-none`}
       >
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-card-border py-3 pl-[max(1.5rem,env(safe-area-inset-left))] pr-[max(1.5rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:hidden">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-card-border bg-surface py-3 pl-[max(1.5rem,env(safe-area-inset-left))] pr-[max(1.5rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-10 sm:py-4">
           <button
             type="button"
             onClick={onClose}
             className="inline-flex text-sm font-light tracking-[-0.02em] text-ink underline-offset-4 outline-none ring-ink transition-opacity hover:underline hover:opacity-90 focus-visible:ring-2"
-            aria-label="Вернуться к проекту"
+            aria-label="Назад к проекту"
           >
-            ← К проекту
+            ← Назад
           </button>
           <button
             type="button"
             onClick={onToggleTimer}
-            className="rounded-full border border-black bg-black px-4 py-2 text-sm font-light tabular-nums tracking-[-0.04em] text-white transition-[background-color,opacity] duration-200 hover:bg-neutral-900 active:opacity-90"
+            className="h-8 shrink-0 rounded-full border border-black bg-black px-4 text-sm font-light tabular-nums tracking-[-0.04em] text-white transition-[background-color,opacity] duration-200 hover:bg-neutral-900 active:opacity-90"
           >
             {timerSessionActive ? 'Остановить таймер' : 'Запустить таймер'}
           </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-6 sm:px-10 sm:pt-16">
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-6 sm:px-10 sm:pt-10">
           <span id={titleId} className="sr-only">
             {stage.name}
           </span>
@@ -159,8 +160,8 @@ export function StageDetailModal({
             </div>
           </div>
 
-          <p className="mt-10 max-w-[445px] text-base font-light leading-[1.4] tracking-[-0.06em] text-ink">
-            {description}
+          <p className="mt-10 max-w-[445px] whitespace-pre-wrap break-words text-base font-light leading-[1.4] tracking-[-0.06em] text-ink">
+            <AutolinkText text={description} />
           </p>
 
           <div className="mt-10 flex max-w-[445px] flex-col gap-6 border border-card-border p-5">
@@ -183,9 +184,9 @@ export function StageDetailModal({
               {stagePlannedRows(stage.planned).map((line, i) => (
                 <p
                   key={i}
-                  className="text-[10px] font-light uppercase leading-relaxed tracking-[-0.02em] text-ink/90"
+                  className="whitespace-pre-wrap break-words text-[10px] font-light uppercase leading-relaxed tracking-[-0.02em] text-ink/90"
                 >
-                  {line}
+                  <AutolinkText text={line} />
                 </p>
               ))}
             </div>
@@ -202,28 +203,17 @@ export function StageDetailModal({
                       className={`mt-1.5 h-2 w-2 shrink-0 border border-ink ${item.done ? 'bg-ink' : ''}`}
                       aria-hidden
                     />
-                    <span className="text-base font-light leading-[1.4] tracking-[-0.06em]">
-                      {item.label}
+                    <span className="break-words text-base font-light leading-[1.4] tracking-[-0.06em]">
+                      <AutolinkText text={item.label} />
                     </span>
                   </button>
                 ))}
               </div>
             ) : null}
           </div>
-
-          <div className="mt-8 flex max-w-[445px] flex-wrap gap-2 sm:hidden">
-            <button
-              type="button"
-              onClick={onEdit}
-              className="h-8 rounded-full bg-fill-contrast-bg px-5 text-sm font-light tracking-[-0.05em] text-fill-contrast-fg transition-opacity hover:opacity-90"
-            >
-              Редактировать этап
-            </button>
-          </div>
-          <div className="pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:hidden" aria-hidden />
         </div>
 
-        <div className="hidden shrink-0 border-t border-card-border bg-surface px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-3 sm:px-10 sm:py-6">
+        <div className="flex shrink-0 flex-wrap items-center justify-start gap-3 border-t border-card-border bg-surface px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-10 sm:py-6">
           <button
             type="button"
             className="h-8 rounded-full bg-fill-contrast-bg px-5 text-sm font-light tracking-[-0.05em] text-fill-contrast-fg transition-opacity hover:opacity-90"

@@ -110,7 +110,7 @@ function SettingsCard({
 }) {
   return (
     <section
-      className={`flex flex-col gap-6 border ${BORDER} p-5 sm:p-6`}
+      className={`flex flex-col gap-6 rounded-[3px] border ${BORDER} p-5 sm:p-6`}
     >
       <header className="flex flex-col gap-1">
         <h2 className="text-[10px] font-light uppercase tracking-[-0.02em] text-ink/55">
@@ -595,7 +595,7 @@ export function SettingsPage() {
             <div className="flex flex-wrap items-center gap-4">
               <input
                 type="color"
-                className="h-10 w-14 cursor-pointer border border-[rgba(10,10,10,0.2)] bg-surface p-1"
+                className="h-10 w-14 cursor-pointer rounded-[3px] border border-[rgba(10,10,10,0.2)] bg-surface p-1"
                 value={
                   /^#[0-9A-Fa-f]{6}$/.test(settings.accentColor)
                     ? settings.accentColor
@@ -932,7 +932,7 @@ export function SettingsPage() {
                 <p className="mt-2 text-xs font-light text-ink/60">{telegramUiHint}</p>
               ) : null}
               {telegramPairCode ? (
-                <div className="mt-3 rounded-lg border border-card-border bg-ink/[0.03] px-3 py-2 dark:bg-white/[0.04]">
+                <div className="mt-3 rounded-[3px] border border-card-border bg-ink/[0.03] px-3 py-2 dark:bg-white/[0.04]">
                   <p className="text-[10px] font-light uppercase tracking-[-0.02em] text-ink/50">
                     Команда для бота (если не открылась ссылка)
                   </p>
@@ -1444,7 +1444,7 @@ export function SettingsPage() {
             >
               <textarea
                 readOnly
-                className="min-h-[min(50vh,420px)] w-full resize-y border border-[rgba(10,10,10,0.12)] bg-ink/[0.02] p-3 font-mono text-[11px] font-light leading-relaxed text-ink/90"
+                className="min-h-[min(50vh,420px)] w-full resize-y rounded-[3px] border border-[rgba(10,10,10,0.12)] bg-ink/[0.02] p-3 font-mono text-[11px] font-light leading-relaxed text-ink/90"
                 value={PORTFOLIO_SCHEMA_SQL}
                 spellCheck={false}
               />

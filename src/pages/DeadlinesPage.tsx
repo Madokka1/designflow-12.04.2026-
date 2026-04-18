@@ -87,7 +87,7 @@ export function DeadlinesPage() {
               <li key={r.id}>
                 <Link
                   to={r.to}
-                  className={`flex flex-col gap-0.5 border border-card-border px-4 py-3 transition-colors hover:bg-ink/[0.03] sm:flex-row sm:items-center sm:justify-between ${
+                  className={`flex flex-col gap-0.5 rounded-[3px] border border-card-border px-4 py-3 transition-colors hover:bg-ink/[0.03] sm:flex-row sm:items-center sm:justify-between ${
                     overdue ? 'border-amber-700/30 bg-amber-500/5' : ''
                   }`}
                 >

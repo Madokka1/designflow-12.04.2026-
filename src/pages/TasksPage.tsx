@@ -398,7 +398,7 @@ export function TasksPage() {
             <li
               key={t.id}
               id={`task-${t.id}`}
-              className="scroll-mt-24 overflow-hidden border border-card-border"
+              className="scroll-mt-24 overflow-hidden rounded-[3px] border border-card-border"
             >
               <div className="flex flex-wrap items-center gap-3 px-4 py-3">
                 {bulkSelect ? (

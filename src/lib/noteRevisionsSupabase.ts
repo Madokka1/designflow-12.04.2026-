@@ -20,6 +20,22 @@ export async function insertNoteRevision(
   return error
 }
 
+/** Одна резервная копия на заметку: старые строки для slug удаляются, затем вставляется снимок. */
+export async function replaceNoteRevision(
+  client: SupabaseClient,
+  userId: string,
+  noteSlug: string,
+  snapshot: Note,
+): Promise<Error | null> {
+  const { error: delErr } = await client
+    .from('note_revisions')
+    .delete()
+    .eq('user_id', userId)
+    .eq('note_slug', noteSlug)
+  if (delErr) return delErr
+  return insertNoteRevision(client, userId, noteSlug, snapshot)
+}
+
 export async function fetchNoteRevisions(
   client: SupabaseClient,
   userId: string,
