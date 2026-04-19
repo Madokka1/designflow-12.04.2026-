@@ -11,6 +11,7 @@ import {
 import { projectCardTagChipClass } from '../lib/tagChipClasses'
 import { useProjects } from '../hooks/useProjects'
 import type { CalendarCustomEvent } from '../types/calendarCustomEvent'
+import type { Note } from '../types/note'
 import type { Project } from '../types/project'
 import type { WorkspaceTask } from '../types/workspaceTask'
 
@@ -24,6 +25,7 @@ const NAV = [
   ['Заметки', '/notes'],
   ['Календарь', '/calendar'],
   ['Финансы', '/finance'],
+  ['Резюме', '/resume'],
 ] as const
 
 const MONTH_SHORT = [
@@ -181,6 +183,70 @@ function buildActivityMap(
   return m
 }
 
+function formatNoteDateShort(iso: string) {
+  try {
+    return new Date(iso).toLocaleDateString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    })
+  } catch {
+    return '—'
+  }
+}
+
+/** Компактная карточка заметки под heatmap — без лишней высоты */
+function HomeNotePreviewCard({
+  note,
+  projectTitleBySlug,
+}: {
+  note: Note
+  projectTitleBySlug: Map<string, string>
+}) {
+  const attached = note.attachedProjectSlugs ?? []
+  return (
+    <article
+      className={`relative flex flex-col gap-2 rounded-[3px] border ${BORDER} p-3 transition-[background-color,border-color] hover:border-[rgba(10,10,10)] hover:bg-ink/[0.02] sm:p-3.5`}
+    >
+      <Link
+        to={`/notes/${note.slug}`}
+        className="block min-w-0 text-left outline-none ring-ink transition-colors focus-visible:ring-2"
+      >
+        <div className="flex flex-col gap-1">
+          <h3 className="line-clamp-2 text-lg font-light leading-[1.05] tracking-[-0.06em] text-ink sm:text-[20px] sm:leading-[1] sm:tracking-[-0.07em]">
+            {note.title.trim() || 'Без названия'}
+          </h3>
+          <p className="line-clamp-2 text-xs font-light leading-snug tracking-[-0.02em] text-ink/80 sm:text-[13px]">
+            {note.description.trim() || 'Без описания'}
+          </p>
+        </div>
+      </Link>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[rgba(10,10,10,0.08)] pt-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          {attached.length === 0 ? (
+            <span className="text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink/45">
+              Без проекта
+            </span>
+          ) : (
+            attached.slice(0, 2).map((slug) => (
+              <span
+                key={slug}
+                className="max-w-[120px] truncate text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink"
+                title={projectTitleBySlug.get(slug) ?? slug}
+              >
+                {projectTitleBySlug.get(slug) ?? slug}
+              </span>
+            ))
+          )}
+        </div>
+        <span className="shrink-0 text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink/65">
+          {formatNoteDateShort(note.createdAt)}
+        </span>
+      </div>
+    </article>
+  )
+}
+
 function ProjectPreviewCard({ project }: { project: Project }) {
   const tags = project.tags ?? CARD_FALLBACK_TAGS
   const { section, chipTags } = partitionProjectCardTags(tags)
@@ -188,9 +254,9 @@ function ProjectPreviewCard({ project }: { project: Project }) {
   return (
     <Link
       to={`/projects/${project.slug}`}
-      className="block h-full min-h-[140px] min-w-0 text-left outline-none ring-ink transition-shadow focus-visible:ring-2"
+      className="block h-full min-h-[120px] min-w-0 text-left outline-none ring-ink transition-shadow focus-visible:ring-2"
     >
-      <article className="flex h-full min-h-[140px] flex-col justify-between rounded-[3px] border border-[rgba(10,10,10,0.32)] p-4 transition-[background-color,border-color] hover:border-[rgba(10,10,10)] hover:bg-ink/[0.02]">
+      <article className="flex h-full min-h-[120px] flex-col justify-between rounded-[3px] border border-[rgba(10,10,10,0.32)] p-3.5 transition-[background-color,border-color] hover:border-[rgba(10,10,10)] hover:bg-ink/[0.02] sm:p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <h3 className="text-[24px] font-light leading-[0.95] tracking-[-0.06em]">
@@ -431,12 +497,28 @@ export function HomePage() {
     [projects],
   )
 
+  const projectTitleBySlug = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const p of projects) m.set(p.slug, p.title)
+    return m
+  }, [projects])
+
+  const previewNotes = useMemo(() => {
+    return [...notes]
+      .sort((a, b) => {
+        const ta = new Date(a.createdAt).getTime()
+        const tb = new Date(b.createdAt).getTime()
+        return (Number.isNaN(tb) ? 0 : tb) - (Number.isNaN(ta) ? 0 : ta)
+      })
+      .slice(0, 6)
+  }, [notes])
+
   const projectCount = projects.length
 
   return (
     <main className="relative z-10 flex h-[calc(100dvh-5.5rem)] min-h-0 w-full max-w-none flex-col overflow-hidden px-4 pb-4 pt-5 sm:px-10 sm:pt-6">
       <header className="shrink-0">
-      <h1 className="max-w-[357px] text-[clamp(2.5rem,6vw,4rem)] font-light leading-[0.9] tracking-[-0.09em]">
+        <h1 className="max-w-[357px] text-[clamp(2.5rem,6vw,4rem)] font-light leading-[0.9] tracking-[-0.09em]">
           Обзор
         </h1>
         <nav className="mt-10 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-light tracking-[-0.02em]">
@@ -571,7 +653,7 @@ export function HomePage() {
                   Активность и проекты
                 </h2>
                 <p className="mt-1 text-[11px] font-light text-ink/45">
-                  Сводка активности и превью проектов.
+                  Сводка активности, превью проектов и заметок.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-3">
@@ -587,31 +669,69 @@ export function HomePage() {
                 >
                   Все проекты →
                 </Link>
+                <Link
+                  to="/notes"
+                  className="text-[11px] font-light text-ink/55 underline-offset-4 hover:text-ink hover:underline"
+                >
+                  Все заметки →
+                </Link>
               </div>
             </div>
 
-            <div className="mt-4 grid min-h-0 flex-1 gap-4 lg:grid-rows-[1fr_minmax(10rem,26vh)] lg:gap-5">
+            <div className="mt-4 grid min-h-0 flex-1 gap-4 lg:grid-rows-[minmax(0,1fr)_auto] lg:gap-4">
               <div className="min-h-0 overflow-x-auto overflow-y-auto lg:min-h-0 lg:overflow-y-hidden">
-                <div className="flex h-full min-h-[160px] w-full min-w-0 items-stretch justify-stretch lg:min-h-0">
+                <div className="flex h-full min-h-[120px] w-full min-w-0 items-stretch justify-stretch lg:min-h-0">
                   <ActivityHeatmap activityByDay={activityByDay} />
                 </div>
               </div>
 
-              <div className="flex min-h-0 flex-col border-t border-[rgba(10,10,10,0.12)] pt-4 lg:min-h-0 lg:pt-5">
-                <p className="shrink-0 text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink/50">
-                  Проекты
-                </p>
-                {previewProjects.length === 0 ? (
-                  <p className="mt-3 text-sm font-light text-ink/40">
-                    Проектов пока нет.
-                  </p>
-                ) : (
-                  <div className="mt-3 grid min-h-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-                    {previewProjects.map((p) => (
-                      <ProjectPreviewCard key={p.id} project={p} />
-                    ))}
+              <div className="shrink-0 border-t border-[rgba(10,10,10,0.12)] pt-4 lg:pt-3">
+                <div className="space-y-5 lg:space-y-4">
+                  <div>
+                    <p className="text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink/50">
+                      Проекты
+                    </p>
+                    {previewProjects.length === 0 ? (
+                      <p className="mt-3 text-sm font-light text-ink/40">
+                        Проектов пока нет.
+                      </p>
+                    ) : (
+                      <div className="mt-3 grid min-h-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                        {previewProjects.map((p) => (
+                          <ProjectPreviewCard key={p.id} project={p} />
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
+
+                  <div className="border-t border-[rgba(10,10,10,0.12)] pt-4 lg:pt-3">
+                    <p className="text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink/50">
+                      Заметки
+                    </p>
+                    {previewNotes.length === 0 ? (
+                      <p className="mt-3 text-sm font-light text-ink/40">
+                        Заметок пока нет —{' '}
+                        <Link
+                          to="/notes"
+                          className="text-ink/70 underline-offset-4 hover:text-ink hover:underline"
+                        >
+                          создайте на странице заметок
+                        </Link>
+                        .
+                      </p>
+                    ) : (
+                      <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 xl:grid-cols-3">
+                        {previewNotes.map((n) => (
+                          <HomeNotePreviewCard
+                            key={n.id}
+                            note={n}
+                            projectTitleBySlug={projectTitleBySlug}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </section>

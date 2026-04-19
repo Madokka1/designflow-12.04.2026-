@@ -7,7 +7,7 @@ import {
   formInputUnderlineClass,
   modalEdgeBorderClass,
 } from '../lib/formInputClasses'
-import { formatRubDots } from '../lib/parseAmountRub'
+import { formatRubDots, parseAmountRub } from '../lib/parseAmountRub'
 import { sumStageCostsRub } from '../lib/stageCostSum'
 import {
   PROJECT_PAYMENT_STATUSES,
@@ -267,7 +267,17 @@ export function ProjectFormModal({
                       </span>
                       <p className="border-b border-[var(--color-form-border)] py-2.5 text-base font-light leading-[0.9] tracking-[-0.04em] text-ink">
                         {formatRubDots(
-                          sumStageCostsRub(stagedPaymentPreviewStages ?? []),
+                          sumStageCostsRub(stagedPaymentPreviewStages ?? [], {
+                            tags: [
+                              form.projectStatus,
+                              form.paymentStatus,
+                              form.section,
+                            ],
+                            employeeHourlyRateRub:
+                              parseAmountRub(form.hourlyRate) > 0
+                                ? parseAmountRub(form.hourlyRate)
+                                : undefined,
+                          }),
                         )}
                       </p>
                       <p className="mt-1.5 text-xs font-light leading-snug tracking-[-0.02em] text-ink/55">

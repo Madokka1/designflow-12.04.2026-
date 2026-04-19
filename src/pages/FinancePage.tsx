@@ -203,7 +203,7 @@ export function FinancePage() {
       return projects.filter((p) => {
         if (!isUnpaidNonPersonal(p)) return false
         if (paymentTag(p) === 'поэтапная оплата') {
-          return sumAwaitingPaymentStageCostsRub(p.stages) > 0
+          return sumAwaitingPaymentStageCostsRub(p.stages, p) > 0
         }
         return true
       })
@@ -275,7 +275,10 @@ export function FinancePage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-[20px] sm:grid-cols-2 xl:grid-cols-4">
+            <div
+              className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4"
+              style={{ gap: '10px' }}
+            >
               <BreakdownCol
                 amount={stats.amt.paid}
                 subline={projectsWord(stats.cnt.paid)}
@@ -374,7 +377,10 @@ export function FinancePage() {
                     ? row.tx.amountRub
                     : logTab === 'awaiting_payment' &&
                         paymentTag(row.project) === 'поэтапная оплата'
-                      ? sumAwaitingPaymentStageCostsRub(row.project.stages)
+                      ? sumAwaitingPaymentStageCostsRub(
+                          row.project.stages,
+                          row.project,
+                        )
                       : parseAmountRub(row.project.amount)
                   const amountPrefix = isTx
                     ? row.tx.kind === 'income'

@@ -30,6 +30,7 @@ const ROUTE_ITEMS: Item[] = [
   { id: 'calendar', label: 'Календарь', to: '/calendar' },
   { id: 'deadlines', label: 'Сроки', to: '/deadlines' },
   { id: 'reports', label: 'Отчёты', to: '/reports' },
+  { id: 'resume', label: 'Резюме', to: '/resume' },
   { id: 'notes', label: 'Заметки', to: '/notes' },
   { id: 'settings', label: 'Настройки', to: '/settings' },
 ]

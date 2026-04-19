@@ -14,11 +14,11 @@ import { formatDurationRu } from '../lib/formatDurationRu'
 import { formatRubDots } from '../lib/parseAmountRub'
 import { partitionProjectCardTags } from '../lib/projectSection'
 import { computeProjectProfitRub } from '../lib/projectProfit'
-import { stagePlannedRows } from '../lib/stagePlannedRows'
 import {
-  stageActualTimeLine,
-  stageCommentFromActual,
-} from '../lib/stageToForm'
+  stageCardMetricRows,
+  stagePaymentTagLabel,
+} from '../lib/stageCardMetrics'
+import { stageCommentFromActual } from '../lib/stageToForm'
 import {
   projectCardTagChipClass,
   stageStatusChipClass,
@@ -28,12 +28,13 @@ import {
   reorderStagesToEnd,
   STAGE_DND_TYPE,
 } from '../lib/reorderProjectStages'
-import type { ProjectStage } from '../types/project'
+import type { Project, ProjectStage } from '../types/project'
 
 const CARD_FALLBACK_TAGS = ['Ожидает оплаты', 'В работе', 'Разработка'] as const
 
 function StageRow({
   stage,
+  project,
   reorderMode,
   isDragging,
   isDropTarget,
@@ -43,6 +44,7 @@ function StageRow({
   onDropReorder,
 }: {
   stage: ProjectStage
+  project: Project
   reorderMode: boolean
   isDragging: boolean
   isDropTarget: boolean
@@ -59,6 +61,7 @@ function StageRow({
   const chipDefault = `${chipTypography} rounded-full border border-ink/12 bg-ink/[0.03] px-2.5 py-1 text-ink/80 dark:border-white/12 dark:bg-white/[0.04] dark:text-ink/75`
 
   const statusChipClass = stageStatusChipClass(stage.status)
+  const paymentLabel = stagePaymentTagLabel(stage)
 
   const cardBody = (
     <div
@@ -71,8 +74,13 @@ function StageRow({
       }`}
     >
       <div className="flex min-w-0 flex-1 flex-col gap-4 p-5 sm:gap-5 sm:p-6 sm:pr-5">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           <span className={statusChipClass}>{stage.status}</span>
+          {paymentLabel ? (
+            <span className={projectCardTagChipClass(paymentLabel)}>
+              {paymentLabel}
+            </span>
+          ) : null}
           <span className={chipDefault}>дедлайн: {stage.deadline}</span>
         </div>
         <h3 className="text-[clamp(1.5rem,4vw,2rem)] font-light leading-[0.95] tracking-[-0.06em]">
@@ -84,26 +92,26 @@ function StageRow({
           </p>
         ) : null}
       </div>
-      <div className="flex w-full min-w-0 shrink-0 flex-col justify-between gap-4 border-t border-ink/10 bg-ink/[0.025] px-5 py-5 sm:w-[min(100%,17.5rem)] sm:border-l sm:border-t-0 sm:border-ink/10 sm:px-6 sm:py-6 dark:bg-white/[0.03]">
-        <div className="flex w-full flex-col gap-3 sm:items-end">
-          {stagePlannedRows(stage.planned).map((line, i) => (
-            <p
-              key={i}
-              className="w-full whitespace-pre-wrap break-words text-[10px] font-light uppercase leading-relaxed tracking-[-0.02em] text-ink/75 sm:text-right"
+      <div className="flex w-full shrink-0 border-t border-ink/10 bg-ink/[0.025] px-5 py-5 sm:w-[15rem] sm:shrink-0 sm:flex-none sm:border-l sm:border-t-0 sm:border-ink/10 sm:px-5 sm:py-5 dark:bg-white/[0.03]">
+        <dl className="m-0 flex w-full min-w-0 flex-col gap-0">
+          {stageCardMetricRows(stage, project).map((row, i) => (
+            <div
+              key={`${row.label}-${i}`}
+              className="grid w-full min-w-0 grid-cols-[7.25rem_minmax(0,1fr)] items-center gap-x-1.5 border-b border-ink/[0.08] py-2.5 first:pt-0 last:border-b-0 last:pb-0 dark:border-white/[0.08]"
             >
-              <AutolinkText text={line} />
-            </p>
+              <dt className="min-w-0 text-left text-[10px] font-light uppercase leading-snug tracking-[-0.02em] text-ink/50 dark:text-ink/45">
+                {row.label}
+              </dt>
+              <dd className="block min-w-0 text-right text-[10px] font-light leading-snug tracking-[-0.02em] text-ink/90 tabular-nums">
+                {row.value ? (
+                  <AutolinkText text={row.value} />
+                ) : (
+                  '—'
+                )}
+              </dd>
+            </div>
           ))}
-        </div>
-        {stage.actualInPill ? (
-          <div className="inline-flex self-start rounded-full bg-fill-contrast-bg px-2.5 py-1 text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-fill-contrast-fg sm:self-end">
-            {stageActualTimeLine(stage)}
-          </div>
-        ) : (
-          <p className="text-[10px] font-light uppercase leading-none tracking-[-0.02em] text-ink/80 sm:text-right">
-            {stageActualTimeLine(stage)}
-          </p>
-        )}
+        </dl>
       </div>
     </div>
   )
@@ -335,6 +343,7 @@ export function ProjectDetailPage() {
               <StageRow
                 key={s.id}
                 stage={s}
+                project={project}
                 reorderMode={reorderMode}
                 isDragging={draggingId === s.id}
                 isDropTarget={dropOverId === s.id}

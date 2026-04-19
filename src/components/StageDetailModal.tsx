@@ -9,7 +9,11 @@ import {
 } from '../lib/tagChipClasses'
 import { AutolinkText } from './AutolinkText'
 import { formatDurationRu } from '../lib/formatDurationRu'
-import { stagePlannedRows } from '../lib/stagePlannedRows'
+import {
+  stagePaymentTagLabel,
+  stagePlannedDisplayLineForProject,
+  stagePlannedRowsWithoutPayment,
+} from '../lib/stageCardMetrics'
 import type { Project, ProjectStage } from '../types/project'
 
 const CARD_FALLBACK_TAGS = ['Ожидает оплаты', 'В работе', 'Разработка'] as const
@@ -65,10 +69,13 @@ export function StageDetailModal({
     stage.description ??
     'Дополнительное описание этапа можно добавить при создании или редактировании.'
 
+  const paymentLabel = stagePaymentTagLabel(stage)
+  const extraModalTags = (stage.modalTags ?? []).filter((t) => t !== paymentLabel)
   const headerTags = [
     stage.status,
+    ...(paymentLabel ? [paymentLabel] : []),
     `дедлайн: ${stage.deadline}`,
-    ...(stage.modalTags ?? []),
+    ...extraModalTags,
   ]
 
   const node = (
@@ -181,12 +188,14 @@ export function StageDetailModal({
               </h3>
             </div>
             <div className={`flex flex-col gap-3 border-t pt-5 ${modalEdgeBorderClass}`}>
-              {stagePlannedRows(stage.planned).map((line, i) => (
+              {stagePlannedRowsWithoutPayment(stage.planned).map((line, i) => (
                 <p
                   key={i}
                   className="whitespace-pre-wrap break-words text-[10px] font-light uppercase leading-relaxed tracking-[-0.02em] text-ink/90"
                 >
-                  <AutolinkText text={line} />
+                  <AutolinkText
+                    text={stagePlannedDisplayLineForProject(line, stage, project)}
+                  />
                 </p>
               ))}
             </div>

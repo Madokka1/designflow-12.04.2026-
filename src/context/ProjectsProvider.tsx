@@ -93,11 +93,6 @@ function formToProject(
   const stages = stagesFromTemplate?.length
     ? cloneStagesWithNewIds(stagesFromTemplate)
     : cloneStagesWithNewIds(DEFAULT_PROJECT_STAGES)
-  const rub =
-    data.paymentStatus === 'поэтапная оплата'
-      ? sumStageCostsRub(stages)
-      : parseAmountRub(data.cost)
-  const amount = formatRubDots(rub)
   const deadline = normalizeDeadlineStored(data.deadline)
   const tags = [
     data.projectStatus,
@@ -106,6 +101,15 @@ function formToProject(
   ] as const
   const cid = data.clientId.trim()
   const rateRub = parseAmountRub(data.hourlyRate)
+  const stagedCostCtx = {
+    tags: [...tags],
+    employeeHourlyRateRub: rateRub > 0 ? rateRub : undefined,
+  }
+  const rub =
+    data.paymentStatus === 'поэтапная оплата'
+      ? sumStageCostsRub(stages, stagedCostCtx)
+      : parseAmountRub(data.cost)
+  const amount = formatRubDots(rub)
   return {
     id,
     slug,
@@ -126,11 +130,6 @@ function formToProject(
 function applyProjectForm(p: Project, data: CreateProjectForm): Project {
   const title = data.title.trim() || 'Название проекта'
   const client = data.client.trim() || 'Клиент'
-  const rub =
-    data.paymentStatus === 'поэтапная оплата'
-      ? sumStageCostsRub(p.stages)
-      : parseAmountRub(data.cost)
-  const amount = formatRubDots(rub)
   const deadline = normalizeDeadlineStored(data.deadline)
   const tags = [
     data.projectStatus,
@@ -139,6 +138,15 @@ function applyProjectForm(p: Project, data: CreateProjectForm): Project {
   ] as const
   const cid = data.clientId.trim()
   const rateRub = parseAmountRub(data.hourlyRate)
+  const stagedCostCtx = {
+    tags: [...tags],
+    employeeHourlyRateRub: rateRub > 0 ? rateRub : undefined,
+  }
+  const rub =
+    data.paymentStatus === 'поэтапная оплата'
+      ? sumStageCostsRub(p.stages, stagedCostCtx)
+      : parseAmountRub(data.cost)
+  const amount = formatRubDots(rub)
   return {
     ...p,
     title,
@@ -188,7 +196,7 @@ function formToStage(data: CreateStageForm, id: string): ProjectStage {
     deadline: normalizeDeadlineStored(data.deadline),
     planned,
     actual,
-    actualInPill: data.stageStatus === 'В работе',
+    actualInPill: false,
     description: comment || undefined,
     modalTags: [data.paymentStatus],
     checklist,

@@ -9,6 +9,7 @@ export const APP_NAV_ITEMS = [
   { label: 'Календарь', to: '/calendar' },
   { label: 'Сроки', to: '/deadlines' },
   { label: 'Отчёты', to: '/reports' },
+  { label: 'Резюме', to: '/resume' },
   { label: 'Заметки', to: '/notes' },
   { label: 'Настройки', to: '/settings' },
 ] as const
@@ -35,6 +36,7 @@ export function navActive(pathname: string, item: AppNavItem): boolean {
   if (item.label === 'Шаблоны') return pathname === '/templates'
   if (item.label === 'Сроки') return pathname === '/deadlines'
   if (item.label === 'Отчёты') return pathname === '/reports'
+  if (item.label === 'Резюме') return pathname === '/resume'
   if (item.label === 'Заметки') {
     return pathname === '/notes' || pathname.startsWith('/notes/')
   }
@@ -62,7 +64,7 @@ export const NAV_MENU_GROUPS: { title: string; labels: readonly AppNavLabel[] }[
     },
     {
       title: 'Контент и система',
-      labels: ['Заметки', 'Настройки'],
+      labels: ['Резюме', 'Заметки', 'Настройки'],
     },
   ]
 

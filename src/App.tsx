@@ -47,6 +47,9 @@ const DeadlinesPage = lazy(() =>
 const ReportsPage = lazy(() =>
   import('./pages/ReportsPage').then((m) => ({ default: m.ReportsPage })),
 )
+const ResumePage = lazy(() =>
+  import('./pages/ResumePage').then((m) => ({ default: m.ResumePage })),
+)
 
 function PageFallback() {
   return (
@@ -145,6 +148,14 @@ function AppRoutes() {
           element={
             <Suspense fallback={<PageFallback />}>
               <ReportsPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="resume"
+          element={
+            <Suspense fallback={<PageFallback />}>
+              <ResumePage />
             </Suspense>
           }
         />
