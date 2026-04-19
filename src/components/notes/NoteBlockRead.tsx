@@ -9,7 +9,7 @@ function TodoRead({ item }: { item: NoteTodoItem }) {
         aria-hidden
       />
       <span
-        className={`text-base font-light leading-[1.4] tracking-[-0.06em] text-ink ${
+        className={`text-base font-light leading-[1.4] tracking-[-0.03em] text-ink ${
           item.done ? 'text-ink/45 line-through' : ''
         }`}
       >
@@ -23,37 +23,37 @@ export function NoteBlockRead({ block }: { block: NoteBlock }) {
   switch (block.type) {
     case 'h1':
       return (
-        <h3 className="text-[32px] font-light leading-[0.9] tracking-[-0.09em] text-ink">
+        <h3 className="text-[32px] font-light leading-[0.9] tracking-[-0.03em] text-ink">
           {block.text || '\u00a0'}
         </h3>
       )
     case 'h2':
       return (
-        <h4 className="text-[28px] font-light leading-[0.9] tracking-[-0.09em] text-ink">
+        <h4 className="text-[28px] font-light leading-[0.9] tracking-[-0.03em] text-ink">
           {block.text || '\u00a0'}
         </h4>
       )
     case 'h3':
       return (
-        <h5 className="text-2xl font-light leading-[0.9] tracking-[-0.09em] text-ink">
+        <h5 className="text-2xl font-light leading-[0.9] tracking-[-0.03em] text-ink">
           {block.text || '\u00a0'}
         </h5>
       )
     case 'h4':
       return (
-        <h6 className="text-xl font-light leading-[0.9] tracking-[-0.09em] text-ink">
+        <h6 className="text-xl font-light leading-[0.9] tracking-[-0.03em] text-ink">
           {block.text || '\u00a0'}
         </h6>
       )
     case 'h5':
       return (
-        <p className="text-lg font-light leading-[0.9] tracking-[-0.09em] text-ink">
+        <p className="text-lg font-light leading-[0.9] tracking-[-0.03em] text-ink">
           {block.text || '\u00a0'}
         </p>
       )
     case 'h6':
       return (
-        <p className="text-base font-light leading-[0.9] tracking-[-0.09em] text-ink">
+        <p className="text-base font-light leading-[0.9] tracking-[-0.03em] text-ink">
           {block.text || '\u00a0'}
         </p>
       )
@@ -65,13 +65,13 @@ export function NoteBlockRead({ block }: { block: NoteBlock }) {
       if (block.text.includes('<')) {
         return (
           <p
-            className="whitespace-pre-wrap text-base font-light leading-[1.45] tracking-[-0.09em] text-ink"
+            className="whitespace-pre-wrap text-base font-light leading-[1.45] tracking-[-0.03em] text-ink"
             dangerouslySetInnerHTML={{ __html: block.text }}
           />
         )
       }
       return (
-        <p className="whitespace-pre-wrap text-base font-light leading-[1.45] tracking-[-0.09em] text-ink">
+        <p className="whitespace-pre-wrap text-base font-light leading-[1.45] tracking-[-0.03em] text-ink">
           {block.text}
         </p>
       )
@@ -94,7 +94,7 @@ export function NoteBlockRead({ block }: { block: NoteBlock }) {
     case 'link': {
       const href = (block.href ?? '').trim() || '#'
       return (
-        <p className="py-1 text-base font-light tracking-[-0.09em]">
+        <p className="py-1 text-base font-light tracking-[-0.03em]">
           <a
             href={href}
             target="_blank"

@@ -41,7 +41,7 @@ function NoteCard({
           <h3 className="text-[32px] font-light leading-[0.9] tracking-[-0.09em]">
             {note.title.trim() || 'Без названия'}
           </h3>
-          <p className="line-clamp-3 text-base font-light leading-[1.35] tracking-[-0.09em] text-ink/85">
+          <p className="line-clamp-3 text-base font-light leading-[1.35] tracking-[-0.03em] text-ink/85">
             {note.description.trim() || 'Без описания'}
           </p>
         </div>

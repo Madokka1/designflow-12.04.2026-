@@ -505,7 +505,7 @@ export function NoteEditorPage() {
               <h2 className="text-[32px] font-light leading-[0.9] tracking-[-0.09em] text-ink">
                 {draft.title.trim() || 'Без названия'}
               </h2>
-              <p className="text-base font-light leading-[1.35] tracking-[-0.09em] text-ink/85 whitespace-pre-wrap">
+              <p className="text-base font-light leading-[1.35] tracking-[-0.03em] text-ink/85 whitespace-pre-wrap">
                 {draft.description.trim() || '—'}
               </p>
             </div>
@@ -515,7 +515,7 @@ export function NoteEditorPage() {
                 <h2 className="text-[32px] font-light leading-[0.9] tracking-[-0.09em] text-ink">
                   {draft.title.trim() || 'Без названия'}
                 </h2>
-                <p className="text-base font-light leading-[1.35] tracking-[-0.09em] text-ink/85 whitespace-pre-wrap">
+                <p className="text-base font-light leading-[1.35] tracking-[-0.03em] text-ink/85 whitespace-pre-wrap">
                   {draft.description.trim() || '—'}
                 </p>
               </div>
@@ -793,7 +793,7 @@ export function NoteEditorPage() {
 
             {previewMode ? (
               <div
-                className="whitespace-pre-wrap text-base font-light leading-[1.45] tracking-[-0.09em] text-ink [&_h1]:text-[32px] [&_h1]:leading-[0.9] [&_h1]:tracking-[-0.09em] [&_h1]:font-light [&_h1]:mt-6 [&_h1]:mb-2 [&_h2]:text-[28px] [&_h2]:leading-[0.9] [&_h2]:tracking-[-0.09em] [&_h2]:font-light [&_h2]:mt-5 [&_h2]:mb-2 [&_h3]:text-2xl [&_h3]:leading-[0.95] [&_h3]:tracking-[-0.07em] [&_h3]:font-light [&_h3]:mt-4 [&_h3]:mb-2 [&_h4]:text-xl [&_h4]:leading-[0.95] [&_h4]:tracking-[-0.06em] [&_h4]:font-light [&_h4]:mt-4 [&_h4]:mb-1 [&_h5]:text-lg [&_h5]:leading-[1.05] [&_h5]:tracking-[-0.05em] [&_h5]:font-light [&_h5]:mt-3 [&_h5]:mb-1 [&_h6]:text-base [&_h6]:leading-[1.1] [&_h6]:tracking-[-0.05em] [&_h6]:font-light [&_h6]:mt-3 [&_h6]:mb-1 [&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1"
+                className="whitespace-pre-wrap text-base font-light leading-[1.45] tracking-[-0.03em] text-ink [&_h1]:text-[32px] [&_h1]:leading-[0.9] [&_h1]:tracking-[-0.03em] [&_h1]:font-light [&_h1]:mt-6 [&_h1]:mb-2 [&_h2]:text-[28px] [&_h2]:leading-[0.9] [&_h2]:tracking-[-0.03em] [&_h2]:font-light [&_h2]:mt-5 [&_h2]:mb-2 [&_h3]:text-2xl [&_h3]:leading-[0.95] [&_h3]:tracking-[-0.03em] [&_h3]:font-light [&_h3]:mt-4 [&_h3]:mb-2 [&_h4]:text-xl [&_h4]:leading-[0.95] [&_h4]:tracking-[-0.03em] [&_h4]:font-light [&_h4]:mt-4 [&_h4]:mb-1 [&_h5]:text-lg [&_h5]:leading-[1.05] [&_h5]:tracking-[-0.03em] [&_h5]:font-light [&_h5]:mt-3 [&_h5]:mb-1 [&_h6]:text-base [&_h6]:leading-[1.1] [&_h6]:tracking-[-0.03em] [&_h6]:font-light [&_h6]:mt-3 [&_h6]:mb-1 [&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1"
                 dangerouslySetInnerHTML={{
                   __html: sanitizeRichHtml(draft.bodyHtml ?? ''),
                 }}
@@ -820,7 +820,7 @@ export function NoteEditorPage() {
                   role="textbox"
                   aria-multiline="true"
                   data-placeholder="Начните писать…"
-                  className="min-h-[40px] w-full bg-transparent py-1 text-base font-light leading-[1.45] tracking-[-0.09em] text-ink outline-none [overflow-wrap:anywhere] [&_h1]:text-[32px] [&_h1]:leading-[0.9] [&_h1]:tracking-[-0.09em] [&_h1]:font-light [&_h1]:mt-6 [&_h1]:mb-2 [&_h2]:text-[28px] [&_h2]:leading-[0.9] [&_h2]:tracking-[-0.09em] [&_h2]:font-light [&_h2]:mt-5 [&_h2]:mb-2 [&_h3]:text-2xl [&_h3]:leading-[0.95] [&_h3]:tracking-[-0.07em] [&_h3]:font-light [&_h3]:mt-4 [&_h3]:mb-2 [&_h4]:text-xl [&_h4]:leading-[0.95] [&_h4]:tracking-[-0.06em] [&_h4]:font-light [&_h4]:mt-4 [&_h4]:mb-1 [&_h5]:text-lg [&_h5]:leading-[1.05] [&_h5]:tracking-[-0.05em] [&_h5]:font-light [&_h5]:mt-3 [&_h5]:mb-1 [&_h6]:text-base [&_h6]:leading-[1.1] [&_h6]:tracking-[-0.05em] [&_h6]:font-light [&_h6]:mt-3 [&_h6]:mb-1 [&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1"
+                  className="min-h-[40px] w-full bg-transparent py-1 text-base font-light leading-[1.45] tracking-[-0.03em] text-ink outline-none [overflow-wrap:anywhere] [&_h1]:text-[32px] [&_h1]:leading-[0.9] [&_h1]:tracking-[-0.03em] [&_h1]:font-light [&_h1]:mt-6 [&_h1]:mb-2 [&_h2]:text-[28px] [&_h2]:leading-[0.9] [&_h2]:tracking-[-0.03em] [&_h2]:font-light [&_h2]:mt-5 [&_h2]:mb-2 [&_h3]:text-2xl [&_h3]:leading-[0.95] [&_h3]:tracking-[-0.03em] [&_h3]:font-light [&_h3]:mt-4 [&_h3]:mb-2 [&_h4]:text-xl [&_h4]:leading-[0.95] [&_h4]:tracking-[-0.03em] [&_h4]:font-light [&_h4]:mt-4 [&_h4]:mb-1 [&_h5]:text-lg [&_h5]:leading-[1.05] [&_h5]:tracking-[-0.03em] [&_h5]:font-light [&_h5]:mt-3 [&_h5]:mb-1 [&_h6]:text-base [&_h6]:leading-[1.1] [&_h6]:tracking-[-0.03em] [&_h6]:font-light [&_h6]:mt-3 [&_h6]:mb-1 [&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1"
                   onFocus={() => {
                     bodyHydratedRef.current = true
                   }}
